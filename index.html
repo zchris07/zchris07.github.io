@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chris Zou — Portfolio</title>
+<meta name="description" content="Games, learning tools and music apps built with Claude Code.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <h1>Chris Zou</h1>
+  <p class="lede">I build games, learning tools and music apps in the browser, working with Claude Code.</p>
+  <nav class="links">
+    <a href="mailto:zchris0783@gmail.com">Email</a>
+    <a href="https://www.linkedin.com/in/REPLACE-ME">LinkedIn</a>
+    <a href="https://github.com/zchris07">GitHub</a>
+    <a href="resume.pdf">Resume</a>
+  </nav>
+</header>
+<main>
+  <section class="grid" id="grid" aria-label="Projects"></section>
+</main>
+<footer>Built with plain HTML and CSS. Each Play button opens the app full page in a new tab.</footer>
+<script src="projects.js"></script>
+<script>
+const grid = document.getElementById('grid');
+for (const p of PROJECTS) {
+  const card = document.createElement('article');
+  card.className = 'card' + (p.soon ? ' soon' : '');
+  const shot = p.shot
+    ? `<img src="${p.shot}" alt="${p.name} screenshot" loading="lazy">`
+    : `<div class="ph" style="--h:${p.hue}"><span>${p.name}</span></div>`;
+  const play = p.play ? `<a class="btn primary" href="${p.play}" target="_blank" rel="noopener">Play</a>` : `<span class="btn disabled">${p.playNote || 'Coming soon'}</span>`;
+  const code = p.code ? `<a class="btn" href="${p.code}" target="_blank" rel="noopener">Code</a>` : '';
+  card.innerHTML = `<div class="shot">${shot}</div><div class="body"><h2>${p.name}</h2><p>${p.desc}</p><div class="actions">${play}${code}</div></div>`;
+  grid.appendChild(card);
+}
+</script>
+</body>
+</html>

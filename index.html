@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Chris Zou</title>
-<meta name="description" content="Chris Zou: investment operations, UX/UI and front-end development. Experience and personal projects.">
+<title>christopher zou</title>
+<meta name="description" content="Christopher Zou: investment operations professional who enjoys vibing. Experience and personal projects.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap">
@@ -12,44 +12,47 @@
 </head>
 <body>
 <header class="bar">
-  <a class="brand" href="#home" data-write>Chris Zou</a>
-  <nav class="tabs" aria-label="Sections">
-    <a href="#experience" data-tab="experience">Professional experience</a>
-    <a href="#projects" data-tab="projects">Personal projects</a>
+  <a class="brand" href="#hero" data-write>christopher zou</a>
+  <nav class="links" aria-label="Sections">
+    <a href="#experience" data-sec="experience">professional experience</a>
+    <a href="#projects" data-sec="projects">personal projects</a>
   </nav>
 </header>
 
 <main>
-  <section class="tab" id="tab-home" data-tab="home">
-    <h1 data-write>Chris Zou</h1>
-    <p class="lede" data-write>Investment operations by trade, interface design and front-end code by choice. I build interactive web experiences end to end, with Claude Code.</p>
-    <p class="contact">
-      <a href="https://github.com/zchris07" target="_blank" rel="noopener">GitHub</a>
-    </p>
+  <section class="sec hero" id="hero">
+    <h1 data-write>christopher zou</h1>
+    <p class="lede" data-write>Investment operations professional who enjoys vibing</p>
+    <a class="cue" href="#experience" aria-label="Scroll to experience">scroll</a>
   </section>
 
-  <section class="tab" id="tab-experience" data-tab="experience" hidden>
+  <section class="sec" id="experience">
     <h2 class="page-title" data-write>Professional experience</h2>
     <ol class="timeline" id="timeline"></ol>
   </section>
 
-  <section class="tab" id="tab-projects" data-tab="projects" hidden>
+  <section class="sec" id="projects">
     <h2 class="page-title" data-write>Personal projects</h2>
     <div class="projects">
       <ul class="plist" id="plist" aria-label="Projects"></ul>
-      <article class="detail" id="detail" aria-live="polite" hidden>
-        <h3 id="d-title" data-write></h3>
-        <p class="d-sum" id="d-sum" data-write></p>
-        <div class="stage" id="d-stage" aria-hidden="true"></div>
-        <p class="d-links" id="d-links"></p>
-      </article>
+      <div class="detail-col">
+        <p class="hint" id="hint" data-write>Move over the list, then click a project.</p>
+        <article class="detail" id="detail" aria-live="polite" hidden>
+          <h3 id="d-title" data-write></h3>
+          <p class="d-sum" id="d-sum" data-write></p>
+          <div class="media">
+            <div class="m-main" id="m-main"></div>
+            <div class="m-thumbs" id="m-thumbs"></div>
+          </div>
+          <p class="d-links" id="d-links"></p>
+        </article>
+      </div>
     </div>
   </section>
 </main>
 
 <script src="data.js"></script>
 <script src="write.js"></script>
-<script src="graphics.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

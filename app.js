@@ -135,8 +135,7 @@ prepare(quote); hideNow(quote);
 let quoteTimer = null;
 new IntersectionObserver(es => es.forEach(e => {
   clearTimeout(quoteTimer);
-  if (e.isIntersecting) quoteTimer = setTimeout(() => writeIn(quote, 1), 1200);
-  else if (quote._state === 'in') writeOut(quote, 0.5);
+  if (e.isIntersecting && quote._state !== 'in') quoteTimer = setTimeout(() => writeIn(quote, 1), 1200);
 }), { threshold: 0.4 }).observe(quote);
 
 // ---- start ----

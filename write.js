@@ -91,13 +91,13 @@ function writeOut(el, k = 1) {
 // Hide an element's words immediately, ready to be written in later.
 function hideNow(el) { prepare(el); clearTimeout(timers.get(el)); el._state = 'out'; clearWords(el); el.classList.add('hid'); }
 
-// Write in/out as elements enter and leave the viewport.
+// Write in as elements first enter the viewport.
 const io = new IntersectionObserver(entries => {
   entries.forEach(e => {
     const el = e.target;
     if (!el.offsetParent && !e.isIntersecting) return;
+    // Text is written in once, the first time it is revealed. Scrolling back up leaves it as it is.
     if (e.isIntersecting && el._state !== 'in') writeIn(el, 0.8);
-    else if (!e.isIntersecting && el._state === 'in') writeOut(el, 0.5);
   });
 }, { threshold: 0.2 });
 function watch(el) { prepare(el); if (!REDUCED) { hideNow(el); io.observe(el); } }

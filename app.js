@@ -44,7 +44,7 @@ PROJECTS.forEach(p => {
   b.addEventListener('click', () => openProject(p.id));
   li.append(b); plist.append(li); items.push({ li, b });
 });
-const RADIUS = 95, GAIN = 0.85;   // pixels of reach; extra scale at the cursor (1 + GAIN)
+const RADIUS = 55, GAIN = 0.45;   // pixels of reach; extra scale at the cursor (1 + GAIN). At most three names grow.
 let geo = [], mouseY = null, frame = 0;
 function measure() {
   const top = plist.getBoundingClientRect().top;
@@ -53,9 +53,9 @@ function measure() {
 function magnify() {
   frame = 0;
   if (mouseY === null) { items.forEach(({ b }) => { b.style.transform = ''; }); return; }
-  const s = geo.map(g => 1 + GAIN * Math.exp(-(((mouseY - g.c) / RADIUS) ** 2)));
-  const grow = geo.map((g, i) => g.h * (s[i] - 1));
   let k = 0; geo.forEach((g, i) => { if (Math.abs(mouseY - g.c) < Math.abs(mouseY - geo[k].c)) k = i; });
+  const s = geo.map((g, i) => Math.abs(i - k) <= 1 ? 1 + GAIN * Math.exp(-(((mouseY - g.c) / RADIUS) ** 2)) : 1);
+  const grow = geo.map((g, i) => g.h * (s[i] - 1));
   const before = i => grow.slice(0, i).reduce((a, b) => a + b, 0);
   const ref = before(k) + grow[k] / 2;           // keeps the name under the cursor in place
   items.forEach(({ b }, i) => { b.style.transform = `translateY(${(before(i) + grow[i] / 2 - ref).toFixed(1)}px) scale(${s[i].toFixed(3)})`; });
@@ -128,6 +128,16 @@ function openProject(id) {
   if (first || REDUCED) fill();
   else { writeOut($('#d-title'), .6); writeOut($('#d-sum'), .4); setTimeout(() => { if (openId === id) fill(); }, 450); }
 }
+
+// ---- hero quote: written in a second after the job title ----
+const quote = $('#quote');
+prepare(quote); hideNow(quote);
+let quoteTimer = null;
+new IntersectionObserver(es => es.forEach(e => {
+  clearTimeout(quoteTimer);
+  if (e.isIntersecting) quoteTimer = setTimeout(() => writeIn(quote, 1), 1200);
+  else if (quote._state === 'in') writeOut(quote, 0.5);
+}), { threshold: 0.4 }).observe(quote);
 
 // ---- start ----
 document.querySelectorAll('[data-write]').forEach(watch);

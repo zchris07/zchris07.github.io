@@ -35,7 +35,7 @@ const PROJECTS = [
     summary: 'A plain-language guide to American football for new and international fans. The basics are told step by step on an animated field, with every NFL team and roster, rankings and a glossary, in seven languages including right-to-left Arabic.',
     media: { video: 'assets/football.mp4', shots: ['assets/football-1.webp', 'assets/football-2.webp', 'assets/football-3.webp'] },
     play: `https://${GH}.github.io/football-explained/`, code: `https://github.com/${GH}/football-explained` },
-  { id: 'freestyle', title: 'freestyle',
+  { id: 'freestyle', title: 'freestyle.wtf',
     theme: { bg: '#121212', fg: '#ffffff', accent: '#1ed760', panel: '#1f1f1f' },
     summary: 'A rap freestyle rhyme trainer. Pick a rhyme scheme and a beat; the game scrolls two prep bars and 32 bars, with rhyme words landing on your chosen beat, synced to the track by an in-browser beat-grid detector.',
     media: { video: 'assets/freestyle.mp4', shots: ['assets/freestyle-1.webp', 'assets/freestyle-2.webp', 'assets/freestyle-3.webp'] },

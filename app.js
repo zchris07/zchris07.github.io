@@ -35,36 +35,14 @@ function sync() {
 addEventListener('scroll', () => { if (!queued) { queued = true; requestAnimationFrame(sync); } }, { passive: true });
 addEventListener('resize', sync);
 
-// ---- project list: magnification by proximity to the cursor ----
+// ---- project list ----
 const plist = $('#plist');
-const items = [];
 PROJECTS.forEach(p => {
   const li = document.createElement('li');
   const b = document.createElement('button'); b.type = 'button'; b.textContent = p.title; b.dataset.id = p.id;
   b.addEventListener('click', () => openProject(p.id));
-  li.append(b); plist.append(li); items.push({ li, b });
+  li.append(b); plist.append(li);
 });
-const RADIUS = 55, GAIN = 0.45;   // pixels of reach; extra scale at the cursor (1 + GAIN). At most three names grow.
-let geo = [], mouseY = null, frame = 0;
-function measure() {
-  const top = plist.getBoundingClientRect().top;
-  geo = items.map(({ li }) => { const r = li.getBoundingClientRect(); return { c: r.top - top + r.height / 2, h: r.height }; });
-}
-function magnify() {
-  frame = 0;
-  if (mouseY === null) { items.forEach(({ b }) => { b.style.transform = ''; }); return; }
-  let k = 0; geo.forEach((g, i) => { if (Math.abs(mouseY - g.c) < Math.abs(mouseY - geo[k].c)) k = i; });
-  const s = geo.map((g, i) => Math.abs(i - k) <= 1 ? 1 + GAIN * Math.exp(-(((mouseY - g.c) / RADIUS) ** 2)) : 1);
-  const grow = geo.map((g, i) => g.h * (s[i] - 1));
-  const before = i => grow.slice(0, i).reduce((a, b) => a + b, 0);
-  const ref = before(k) + grow[k] / 2;           // keeps the name under the cursor in place
-  items.forEach(({ b }, i) => { b.style.transform = `translateY(${(before(i) + grow[i] / 2 - ref).toFixed(1)}px) scale(${s[i].toFixed(3)})`; });
-}
-const queue = () => { if (!frame) frame = requestAnimationFrame(magnify); };
-plist.addEventListener('pointerenter', measure);
-plist.addEventListener('pointermove', e => { if (e.pointerType === 'touch') return; if (!geo.length) measure(); mouseY = e.clientY - plist.getBoundingClientRect().top; queue(); });
-plist.addEventListener('pointerleave', () => { mouseY = null; queue(); });
-addEventListener('resize', () => { geo = []; });
 
 // ---- project detail with real captures ----
 const detail = $('#detail'), hint = $('#hint');

@@ -73,11 +73,13 @@ h1 { font-family: var(--serif); font-size: clamp(2.2rem, 6vw, 4.2rem); line-heig
 .projects { display: grid; grid-template-columns: minmax(220px, 340px) 1fr; gap: 56px; align-items: start; }
 .plist { list-style: none; margin: 0; padding: 36px 0 0; position: sticky; top: 16vh; }
 .plist li { margin: 0; padding: 0; }
-.plist button { font-family: var(--font); font-optical-sizing: auto; font-size: 1.4rem; line-height: 1.2; font-weight: 400; color: var(--muted); background: none; border: 0; padding: 9px 0; cursor: pointer; text-align: left;
-  transform-origin: left center; transition: transform .14s ease-out, color .25s; will-change: transform; white-space: nowrap; }
-.plist button:hover, .plist button:focus-visible { color: var(--fg); outline: none; }
-.plist button.on { color: var(--fg); font-weight: 600; }
-.hint { color: var(--muted); margin: 8px 0; max-width: 24em; }
+.plist button { font-family: var(--font); font-optical-sizing: auto; font-size: 1.5rem; line-height: 1.2; font-weight: 400; color: var(--muted); background: none; border: 0; padding: 9px 0; cursor: pointer; text-align: left;
+  white-space: nowrap; transition: transform .25s var(--ease), color .25s; }
+.plist button:hover, .plist button:focus-visible { color: var(--fg); transform: translateX(8px); outline: none; }
+.plist button.on { color: var(--fg); font-weight: 600; transform: translateX(8px); }
+.plist button.on::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 10px; border-radius: 50%; background: var(--accent); vertical-align: middle; animation: pop .35s var(--ease); }
+@keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
+.hint { color: var(--fg); font-size: 1.15rem; line-height: 1.55; margin: 0; padding-top: 36px; max-width: 32em; }
 .detail { min-width: 0; padding-top: 6px; }
 .detail h3 { font-family: var(--font); font-optical-sizing: auto; font-size: clamp(2rem, 4.5vw, 3.2rem); line-height: 1.05; font-weight: 600; letter-spacing: -.02em; margin: 0 0 16px; }
 .d-sum { max-width: 38em; margin: 0 0 28px; color: var(--muted); font-size: 1.05rem; }
@@ -100,6 +102,7 @@ a.btn:hover { background: var(--fg); color: var(--bg); }
   .projects { grid-template-columns: 1fr; gap: 24px; }
   .plist { position: static; }
   .plist button { font-size: 1.3rem; }
+  .hint { padding-top: 0; }
   .bar { position: static; }
   .sec { padding-top: 8vh; }
   .hero { padding-top: 6vh; }

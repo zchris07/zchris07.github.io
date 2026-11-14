@@ -29,9 +29,9 @@ const EXPERIENCE = [
 const PROJECTS = [
   { id: 'sidequest', title: 'sidequest planner',
     theme: { bg: '#caaf93', fg: '#2e2a26', muted: '#62594f', accent: '#4f4943', panel: '#f5efe5' },
-    summary: 'A personal, single-user calendar that collects events from websites, feeds, documents, flyers, email and social accounts, turns them into clean entries, merges duplicates and keeps track of where each event came from. Everything shows in one calendar, agenda and map alongside your own appointments and reminders, and lives in a single SQLite file on your machine, with no accounts or cloud services. The captures use the app\'s built-in demo sources, which are fictional.',
+    summary: 'Your own calendar that pulls in events from anywhere. It collects events from websites, feeds, documents, flyers, email and social accounts, turns them into clean entries, merges duplicates and keeps track of where each event came from. Everything shows in one calendar, agenda and map alongside your own appointments and reminders. The captures use the app\'s built-in demo sources, which are fictional.',
     media: { video: 'assets/sidequest.mp4', shots: ['assets/sidequest-1.webp', 'assets/sidequest-2.webp', 'assets/sidequest-3.webp'] },
-    play: null, playNote: 'Runs on your machine', code: null },
+    play: 'https://sidequestplanner.cc', code: null },
   { id: 'football', title: 'football explained.',
     theme: { bg: '#e8dac5', fg: '#2e2a26', muted: '#62594f', accent: '#d9a900', panel: '#ddcbb3' },
     summary: 'A plain-language guide to American football for new and international fans. The basics are told step by step on an animated field, with every NFL team and roster, rankings and a glossary, in seven languages including right-to-left Arabic.',
@@ -69,9 +69,9 @@ const PROJECTS = [
     play: `https://${GH}.github.io/play/24/`, playLabel: 'Play', code: `https://github.com/${GH}/24` },
 ];
 
-// Page themes by scroll position. Hero: Latte 2.0 and Discord are both schemes from the calendar app.
+// Page themes by scroll position: Latte 2.0 (from the calendar app), black on white, then white on Meta blue.
 const THEMES = {
   hero: { bg: '#caaf93', fg: '#2e2a26', muted: '#62594f', accent: '#4f4943', panel: '#f5efe5' },
-  experience: { bg: '#000000', fg: '#ffffff', muted: '#a8a8a8', accent: '#ffffff', panel: '#111111' },
-  projects: { bg: '#121214', fg: '#fbfbfb', muted: '#abacb2', accent: '#5865f2', panel: '#1a1a1e' },
+  experience: { bg: '#ffffff', fg: '#000000', muted: '#555555', accent: '#000000', panel: '#f2f2f2' },
+  projects: { bg: '#0064e0', fg: '#ffffff', muted: 'rgba(255,255,255,0.78)', accent: '#ffffff', panel: '#0057c4' },
 };

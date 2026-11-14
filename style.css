@@ -1,18 +1,19 @@
 @property --bg { syntax: '<color>'; inherits: true; initial-value: #caaf93; }
 @property --fg { syntax: '<color>'; inherits: true; initial-value: #2e2a26; }
+@property --muted { syntax: '<color>'; inherits: true; initial-value: #62594f; }
 @property --accent { syntax: '<color>'; inherits: true; initial-value: #4f4943; }
 @property --panel { syntax: '<color>'; inherits: true; initial-value: #f5efe5; }
 
 /* Latte 2.0 -> black and white -> Discord, all from the page's scroll position. */
 :root {
   --bg: #caaf93; --fg: #2e2a26; --accent: #4f4943; --panel: #f5efe5;
-  --muted: color-mix(in srgb, var(--fg) 76%, var(--bg));
+  --muted: #62594f;
   --line: color-mix(in srgb, var(--fg) 20%, var(--bg));
   --font: "Fraunces", Georgia, serif;
   --serif: Georgia, "Times New Roman", serif;
   --sans: ui-sans-serif, system-ui, "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
   --ease: cubic-bezier(.2, .75, .25, 1);
-  transition: --bg 1s var(--ease), --fg 1s var(--ease), --accent 1s var(--ease), --panel 1s var(--ease);
+  transition: --bg 1s var(--ease), --fg 1s var(--ease), --muted 1s var(--ease), --accent 1s var(--ease), --panel 1s var(--ease);
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }

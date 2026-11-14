@@ -14,7 +14,7 @@ EXPERIENCE.forEach(e => {
 });
 
 // ---- scroll-driven theme ----
-function setTheme(t) { for (const k of ['bg', 'fg', 'accent', 'panel']) root.style.setProperty('--' + k, t[k]); }
+function setTheme(t) { for (const k of ['bg', 'fg', 'muted', 'accent', 'panel']) root.style.setProperty('--' + k, t[k]); }
 const secs = ['hero', 'experience', 'projects'].map(id => document.getElementById(id));
 const navLinks = [...document.querySelectorAll('.links a')];
 let openId = null, stopMedia = null, lastKey = null, queued = false;
@@ -119,7 +119,7 @@ function openProject(id) {
     title.textContent = p.title; sum.textContent = p.summary;
     lk.replaceChildren();
     const add = (label, href, off) => { const a = document.createElement(href ? 'a' : 'span'); a.className = 'btn' + (off ? ' off' : ''); a.textContent = label; if (href) { a.href = href; a.target = '_blank'; a.rel = 'noopener'; } lk.append(a); };
-    if (p.play) add('Play', p.play); else if (p.playNote) add(p.playNote, null, true);
+    if (p.play) add(p.playLabel || 'Visit', p.play); else if (p.playNote) add(p.playNote, null, true);
     if (p.code) add('Code', p.code);
     buildMedia(p);
     hideNow(title); hideNow(sum);

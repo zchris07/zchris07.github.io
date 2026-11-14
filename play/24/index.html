@@ -1,0 +1,3209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>24 — make twenty-four</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script type="module">
+  // ====== FIREBASE (own collection, separate from the Stroop game) ======
+  const firebaseConfig = {
+    apiKey: "AIzaSyB4lqrWfZ7BjbFXc1kYfy0botYhCELTiAc",
+    authDomain: "stroop-f29cf.firebaseapp.com",
+    projectId: "stroop-f29cf",
+    storageBucket: "stroop-f29cf.firebasestorage.app",
+    messagingSenderId: "324422596056",
+    appId: "1:324422596056:web:deac814fca36e4bb2a2ead"
+  };
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc, getDocs, collection }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  window.__fbReady = false;
+  try{
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const ROOT = 'lobbies24';
+    window.fb24 = {
+      async getMeta(code){
+        const s = await getDoc(doc(db,ROOT,code));
+        return s.exists() ? s.data() : null;
+      },
+      async setMeta(code, data){ await setDoc(doc(db,ROOT,code), data, { merge:true }); },
+      async setPlayer(code, id, data){ await setDoc(doc(db,ROOT,code,'players',id), data, { merge:true }); },
+      async getPlayers(code){
+        const s = await getDocs(collection(db,ROOT,code,'players'));
+        return s.docs.map(d => Object.assign({ id:d.id }, d.data()));
+      }
+    };
+    window.__fbReady = true;
+  }catch(e){
+    console.error('Firebase failed to initialize:', e);
+    window.__fbInitError = e;
+  }
+</script>
+<style>
+/* ============================================================
+   24 — a card-table identity: royal blue, flat bone card stock.
+   Georgia carries headings and numerals; Space Grotesk handles
+   card ranks and anything read fast.
+   ============================================================ */
+:root{
+  --royal:#4169E1;
+  --menu-bg:#0000cd;
+  --bone:#f6f3ea;
+  --ink:#16181c;
+  --rouge:#c0392b;
+  --chalk:#c8d4f7;
+  --line:rgba(246,243,234,.30);
+
+  /* --fit is a global shrink multiplier set by JS whenever the natural
+     layout would not fit the viewport. Every size below scales with it,
+     so the game degrades proportionally instead of clipping. */
+  --fit:1;
+
+  --ch: calc(clamp(64px, min(23vh, 22vw), 186px) * var(--fit));
+  --cw: calc(var(--ch) * .71);
+  --hand-gap: calc(clamp(7px, 2.2vw, 30px) * var(--fit));
+  --eq-gap: calc(clamp(4px, 1.1vw, 14px) * var(--fit));
+
+  --opsz: calc(clamp(42px, min(9.5vh, 13vw), 116px) * var(--fit));
+  --btn-py: calc(clamp(10px, 2.3vh, 24px) * var(--fit));
+  --btn-px: calc(clamp(13px, 3vw, 42px) * var(--fit));
+  --btn-fs: calc(clamp(12px, min(2.2vh, 3.4vw), 24px) * var(--fit));
+  --ctl-gap: calc(clamp(9px, 2.2vh, 22px) * var(--fit));
+
+  --mcw:26px;
+  --mch:36px;
+
+  --fast:170ms;
+  --ease:cubic-bezier(.22,.85,.28,1);
+}
+
+*{box-sizing:border-box;}
+html,body{
+  margin:0;padding:0;height:100%;
+  background:var(--royal);
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  overflow:hidden;
+  -webkit-tap-highlight-color:transparent;
+  -webkit-text-size-adjust:100%;
+  user-select:none;
+}
+button{font-family:inherit;}
+.hidden{display:none !important;}
+
+#app{
+  position:relative;
+  height:100dvh;
+  width:100vw;
+  display:flex;
+  flex-direction:column;
+  color:var(--bone);
+  background:var(--royal);
+  overflow:hidden;
+}
+/* Holds the play area and (on wide screens) the solutions column side by
+   side, so the panel takes real space instead of covering the game. */
+.stagewrap{
+  flex:1 1 auto;
+  min-height:0;
+  display:flex;
+  align-items:stretch;
+}
+#play{
+  flex:1 1 auto;
+  min-width:0;
+  min-height:0;
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-start;
+  touch-action:none;
+}
+
+/* ---------------- header ---------------- */
+header{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:14px 22px 12px;position:relative;z-index:3;
+}
+.lockup{display:flex;align-items:baseline;gap:10px;min-width:0;}
+.lockup .mark{
+  font-family:Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;font-weight:700;
+  font-size:30px;line-height:.85;color:var(--bone);letter-spacing:-.02em;
+  background:none;border:none;padding:0;margin:0;cursor:pointer;
+  transition:opacity 120ms ease;
+}
+.lockup .mark:hover{opacity:.78;}
+.lockup .mark:active{opacity:.6;}
+.lockup .sub{font-size:12px;color:var(--chalk);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.stats{display:flex;align-items:center;gap:20px;}
+.stat{text-align:right;position:relative;}
+.stat .lbl{display:block;font-size:10px;color:var(--chalk);letter-spacing:.06em;}
+.stat .val{display:block;font-family:Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;font-weight:700;font-size:22px;line-height:1.05;}
+.stat.time .val{color:var(--bone);}
+.quit{
+  width:30px;height:30px;border-radius:50%;
+  background:transparent;border:1.5px solid rgba(255,255,255,.40);
+  color:rgba(255,255,255,.7);font-size:13px;line-height:1;cursor:pointer;
+  transition:color var(--fast), border-color var(--fast);
+}
+.quit:hover{color:var(--bone);border-color:rgba(255,255,255,.85);}
+.score-pop{
+  position:absolute;top:-4px;right:-14px;
+  font-size:12px;font-weight:600;color:var(--bone);
+  animation:popFade .85s ease forwards;pointer-events:none;
+}
+@keyframes popFade{
+  0%{opacity:0;transform:translateY(5px);}
+  22%{opacity:1;transform:translateY(0);}
+  100%{opacity:0;transform:translateY(-15px);}
+}
+.rule{height:1px;width:100%;background:var(--line);position:relative;z-index:3;}
+.timer-track{height:3px;width:100%;background:rgba(0,0,0,.28);position:relative;z-index:3;overflow:hidden;}
+.timer-fill{
+  height:100%;width:100%;transform-origin:left;
+  background:linear-gradient(90deg,rgba(255,255,255,.9),rgba(255,255,255,.6) 65%,rgba(255,255,255,.3));
+}
+
+/* ---------------- table ---------------- */
+.table{
+  /* Fill the space between the HUD and the fixed controls, keeping the
+     hand and equation visually centred without moving the controls. */
+  flex:1 1 auto;
+  min-height:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:clamp(8px,2.2vh,30px);
+  padding:calc(10px * var(--fit)) 10px;
+  position:relative;z-index:2;
+}
+.hand{
+  display:flex;flex-wrap:nowrap;
+  gap:var(--hand-gap);
+  justify-content:center;align-items:center;
+  max-width:100%;
+}
+.slot{
+  width:var(--cw);height:var(--ch);
+  border-radius:10px;
+  background:rgba(0,0,0,.20);
+  flex:0 0 auto;
+}
+.card{
+  width:var(--cw);height:var(--ch);flex:0 0 auto;
+  border-radius:10px;
+  background:#f6f3ea;
+  border:1px solid rgba(0,0,0,.28);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  position:relative;cursor:pointer;
+  transition:border-color var(--fast);
+}
+.card:hover{border-color:rgba(0,0,0,.45);}
+.card .rank{
+  font-family:Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;
+  font-weight:700;
+  font-size:calc(var(--ch)*.34);line-height:1;
+}
+.card .suit{font-size:calc(var(--ch)*.21);line-height:1;margin-top:calc(var(--ch)*.03);}
+.card .corner{
+  position:absolute;top:5px;left:7px;
+  font-family:Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;font-weight:700;
+  font-size:calc(var(--ch)*.135);line-height:1;opacity:.75;
+}
+.card.red{color:var(--rouge);}
+.card.black{color:var(--ink);}
+
+/* ---------------- equation bar (no chrome of its own) ---------------- */
+.eqwrap{
+  width:100%;display:flex;align-items:center;justify-content:center;
+  min-height:calc(var(--ch) + 6px);padding:0 8px;
+}
+.eqinner{display:flex;align-items:center;gap:var(--eq-gap);transform-origin:center center;white-space:nowrap;}
+.eqhint{color:var(--chalk);font-size:13px;opacity:.8;}
+.eqop{
+  font-family:Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;font-weight:600;
+  font-size:calc(var(--ch)*.38);line-height:1;color:var(--bone);
+  padding:0 1px;flex:0 0 auto;
+}
+.paren{
+  font-family:Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;font-weight:400;
+  font-size:calc(var(--ch)*.92);line-height:.72;color:var(--bone);
+  padding:0 3px;cursor:pointer;flex:0 0 auto;
+  transition:color var(--fast);
+}
+.paren.hot{color:var(--ink);}
+.pop-in{animation:popIn 150ms var(--ease) both;}
+@keyframes popIn{from{opacity:0;transform:scale(.62);}to{opacity:1;transform:scale(1);}}
+@keyframes slideDownIn{from{opacity:0;transform:translateY(-22px);}to{opacity:1;transform:translateY(0);}}
+@keyframes slideUpIn{from{opacity:0;transform:translateY(22px);}to{opacity:1;transform:translateY(0);}}
+@keyframes fadeInPlain{from{opacity:0;}to{opacity:1;}}
+.enter-top{animation:slideDownIn 420ms var(--ease) both;}
+.enter-bottom{animation:slideUpIn 420ms var(--ease) both;}
+.enter-fade{animation:fadeInPlain 360ms ease both;}
+/* Nothing in these groups is visible until enterPlay() reveals them in
+   order, so the game never "pops in" while the menu is fading away. */
+#play.pre-hud > header,
+#play.pre-hud > .rule,
+#play.pre-hud > .timer-track,
+#play.pre-hud .hand{opacity:0;pointer-events:none;}
+#play.pre-phase3 > .controls,
+#play.pre-phase3 > #board,
+#play.pre-phase3 .eqwrap,
+#play.pre-phase3 .readout{opacity:0;pointer-events:none;}
+
+.readout{
+  min-height:calc(22px * var(--fit));
+  font-family:Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;font-weight:600;
+  font-size:calc(clamp(13px, 2vh, 19px) * var(--fit));color:var(--chalk);
+  opacity:0;transition:opacity 120ms ease;text-align:center;padding:0 12px;
+  display:flex;align-items:center;justify-content:center;gap:.5em;flex-wrap:wrap;
+}
+.readout.show{opacity:1;}
+.readout.good{color:var(--bone);}
+.readout.bad{color:#f0a4a0;}
+.readout.note{font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:calc(clamp(11px,1.6vh,13px) * var(--fit));color:var(--chalk);}
+.readout .linkish{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:calc(clamp(11px,1.6vh,13.5px) * var(--fit));
+  font-weight:600;
+  background:transparent;border:none;padding:0;
+  color:var(--bone);text-decoration:underline;text-underline-offset:3px;
+  cursor:pointer;
+}
+.readout .linkish:hover{opacity:.8;}
+.eqwrap.nudge .eqinner{animation:nudge 300ms var(--ease);}
+@keyframes nudge{
+  0%,100%{transform:translateX(0) scale(var(--eqs,1));}
+  28%{transform:translateX(-7px) scale(var(--eqs,1));}
+  64%{transform:translateX(6px) scale(var(--eqs,1));}
+}
+
+/* ---------------- controls ----------------
+   The spacer below the cluster is a fixed 90px, so the bottom edge of
+   the Submit button sits 90px above the window's bottom edge. It is
+   still allowed to shrink toward zero on short viewports, so the cards
+   and buttons always win the space contest over the reserved gap. */
+.controls{
+  flex:0 0 auto;
+  padding:calc(8px * var(--fit)) 12px 0;
+  display:flex;flex-direction:column;align-items:center;gap:var(--ctl-gap);
+  position:relative;z-index:3;
+}
+.bottom-gap{
+  flex:0 1 90px;
+  min-height:0;
+  height:auto;
+}
+.ops{display:flex;flex-wrap:nowrap;gap:var(--ctl-gap);}
+.opkey{
+  width:var(--opsz);height:var(--opsz);
+  border-radius:calc(var(--opsz) * .22);
+  background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.55);color:var(--bone);
+  font-family:Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;font-weight:600;
+  font-size:calc(var(--opsz) * .45);line-height:1;
+  cursor:pointer;flex:0 0 auto;
+  transition:background var(--fast), border-color var(--fast), transform 90ms var(--ease);
+}
+.opkey:hover:not(:disabled){background:rgba(255,255,255,.30);border-color:rgba(255,255,255,.8);}
+.opkey:active:not(:disabled){transform:scale(.94);}
+.opkey:disabled{opacity:.35;cursor:default;}
+.acts{display:flex;gap:var(--ctl-gap);align-items:center;flex-wrap:wrap;justify-content:center;max-width:100%;}
+.btn{
+  border-radius:calc(14px * var(--fit));
+  padding:var(--btn-py) var(--btn-px);
+  font-size:var(--btn-fs);font-weight:600;cursor:pointer;
+  border:1.5px solid rgba(255,255,255,.55);
+  background:rgba(255,255,255,.18);color:var(--bone);
+  white-space:nowrap;
+  transition:background var(--fast), border-color var(--fast), opacity var(--fast), transform 90ms var(--ease);
+}
+.btn:hover:not(:disabled){background:rgba(255,255,255,.30);border-color:rgba(255,255,255,.8);}
+.btn:active:not(:disabled){transform:scale(.97);}
+.btn:disabled{opacity:.35;cursor:default;}
+.btn.primary{background:var(--bone);border-color:var(--bone);color:#1a1f6b;padding:var(--btn-py) calc(var(--btn-px) * 1.4);}
+.btn.primary:hover:not(:disabled){background:#e0ddd4;border-color:#e0ddd4;}
+.btn.primary:disabled{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.30);color:rgba(255,255,255,.45);opacity:1;}
+.btn.quiet{color:var(--bone);}
+.btn.quiet:hover:not(:disabled){background:rgba(255,255,255,.30);}
+
+/* ---------------- other-solutions panel ---------------- */
+#solutions{
+  flex:0 0 clamp(238px, 24vw, 330px);
+  min-height:0;
+  display:flex;flex-direction:column;
+  background:rgba(8,14,70,.55);
+  border-left:1px solid var(--line);
+  z-index:20;
+}
+#solutions.hidden{display:none !important;}
+.sol-head{
+  flex:0 0 auto;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:12px 14px;border-bottom:1px solid var(--line);
+  cursor:pointer;
+}
+.sol-head:hover{background:rgba(255,255,255,.07);}
+.sol-title{font-size:12.5px;font-weight:600;color:var(--bone);line-height:1.3;}
+.sol-title small{display:block;font-weight:400;font-size:10.5px;color:var(--chalk);margin-top:2px;}
+.sol-chev{
+  flex:0 0 auto;color:var(--chalk);font-size:11px;
+  transition:transform 160ms var(--ease);
+}
+.sol-head[aria-expanded="true"] .sol-chev{transform:rotate(90deg);}
+.sol-body{
+  flex:1 1 auto;min-height:0;
+  overflow-y:auto;overflow-x:hidden;
+  padding:10px 12px 16px;
+  display:flex;flex-direction:column;gap:9px;
+}
+#solutions.collapsed .sol-body{display:none;}
+.sol-row{
+  display:flex;flex-wrap:wrap;align-items:center;gap:4px;
+  padding:8px 9px;border-radius:10px;
+  background:rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.14);
+}
+.sol-n{
+  width:100%;font-size:9.5px;letter-spacing:.08em;
+  color:var(--chalk);margin-bottom:3px;
+}
+.mini-card{
+  width:var(--mcw);height:var(--mch);flex:0 0 auto;
+  border-radius:4px;
+  background:#f6f3ea;
+  border:1px solid rgba(0,0,0,.3);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.mini-card .r{
+  font-family:Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;font-weight:700;
+  font-size:calc(var(--mch) * .40);line-height:1;
+}
+.mini-card .s{font-size:calc(var(--mch) * .24);line-height:1;}
+.mini-card.red{color:var(--rouge);}
+.mini-card.black{color:var(--ink);}
+.mini-op{
+  font-family:Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;font-weight:600;
+  font-size:calc(var(--mch) * .46);line-height:1;color:var(--bone);
+  padding:0 1px;flex:0 0 auto;
+}
+.mini-paren{
+  font-family:Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;font-weight:400;
+  font-size:calc(var(--mch) * .95);line-height:.7;color:var(--bone);
+  padding:0 1px;flex:0 0 auto;
+}
+
+/* Narrow / short viewports: the panel becomes a bottom sheet that rides
+   above the game on its own layer. Collapsed, only its header bar shows,
+   which doubles as the small "pull up the solutions" button. */
+@media (max-width:1023px), (max-height:520px){
+  /* Keep the game layout fixed; only the standings panel moves lower. */
+  #board.show{transform:translateY(42px);}
+  #solutions{
+    position:fixed;left:0;right:0;bottom:0;top:auto;
+    flex:0 0 auto;
+    width:100%;
+    max-height:min(62dvh, 460px);
+    border-left:none;
+    border-top:1px solid var(--line);
+    border-radius:16px 16px 0 0;
+    background:rgba(8,14,70,.96);
+    backdrop-filter:blur(6px);
+    transform:translateY(0);
+    transition:transform 220ms var(--ease);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  #solutions.collapsed{
+    transform:translateY(calc(100% - 48px - env(safe-area-inset-bottom,0px)));
+  }
+  .sol-head{padding:13px 16px;}
+}
+
+/* ---------------- dealing ---------------- */
+.card.leaving{
+  opacity:0;
+  transition:opacity 130ms linear;
+  pointer-events:none;
+}
+
+/* ---------------- ready/set/go curtain (match start only) ---------------- */
+#curtain{
+  position:absolute;inset:0;z-index:7;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--royal);
+  font-family:Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;font-weight:700;
+  font-size:clamp(44px,13vw,110px);color:var(--bone);
+  pointer-events:none;
+}
+#curtain.hidden{display:none !important;}
+#curtain.lifting{opacity:0;transition:opacity 300ms ease;}
+#curtain .beat{animation:beat 520ms var(--ease);}
+@keyframes beat{
+  0%{opacity:0;transform:scale(.72);}
+  45%{opacity:1;transform:scale(1.06);}
+  100%{opacity:1;transform:scale(1);}
+}
+
+/* ---------------- vote to skip ---------------- */
+.votebar{
+  position:fixed;
+  right:calc(10px + env(safe-area-inset-right,0px));
+  top:50%;transform:translateY(-50%);
+  max-width:150px;
+  display:flex;flex-direction:column;align-items:flex-end;gap:8px;
+  z-index:6;
+}
+.votebar.hidden{display:none !important;}
+.votelist{
+  display:flex;flex-direction:column;align-items:flex-end;gap:3px;
+  font-size:calc(clamp(10px,1.5vh,12.5px) * var(--fit));
+  color:var(--chalk);line-height:1.35;text-align:right;
+  background:rgba(10,18,80,.7);border-radius:10px;padding:6px 10px;
+}
+.votelist .vhead{font-weight:600;color:var(--bone);letter-spacing:.02em;}
+.votelist .vname{color:var(--bone);opacity:.92;}
+.votelist .vname::before{content:'\2713\00a0';opacity:.75;}
+.btn.vote{
+  border-color:rgba(255,255,255,.75);
+  background:rgba(255,255,255,.24);
+  padding:calc(var(--btn-py) * .72) var(--btn-px);
+  font-size:calc(var(--btn-fs) * .82);
+}
+.btn.vote.cast{
+  background:rgba(255,255,255,.10);
+  border-color:rgba(255,255,255,.35);
+  color:var(--chalk);
+}
+
+/* ---------------- end-of-match round log ---------------- */
+.log-wrap{margin:14px 0 4px;text-align:left;}
+.log-wrap.hidden{display:none !important;}
+.log-toggle{
+  width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:rgba(255,255,255,.10);border:1px solid var(--line);
+  color:var(--bone);border-radius:11px;padding:11px 14px;
+  font-family:'Space Grotesk',sans-serif;font-size:12.5px;font-weight:600;cursor:pointer;
+}
+.log-toggle:hover{background:rgba(255,255,255,.18);}
+.log-chev{transition:transform 160ms var(--ease);display:inline-block;}
+.log-toggle[aria-expanded="true"] .log-chev{transform:rotate(90deg);}
+.log-list{
+  margin-top:8px;max-height:min(46dvh,340px);
+  overflow-y:auto;overflow-x:hidden;
+  display:flex;flex-direction:column;gap:7px;padding-right:2px;
+}
+.log-list.hidden{display:none !important;}
+.log-item{border-radius:11px;}
+.log-head{
+  width:100%;display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+  background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);
+  border-radius:11px;padding:9px 11px;cursor:pointer;
+  font-family:'Space Grotesk',sans-serif;color:var(--bone);text-align:left;
+}
+.log-head:hover{background:rgba(255,255,255,.17);}
+.log-r{font-size:10.5px;color:var(--chalk);letter-spacing:.06em;min-width:50px;}
+.log-meta{font-size:11px;color:var(--chalk);margin-left:auto;white-space:nowrap;}
+.log-meta b{color:var(--bone);font-weight:600;}
+.log-detail{
+  background:rgba(0,0,0,.30);
+  border:1px solid rgba(255,255,255,.24);
+  border-radius:11px;padding:11px 12px 13px;
+  display:flex;flex-direction:column;gap:8px;
+}
+.log-detail .ld-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.log-detail .ld-title{font-size:12.5px;font-weight:600;color:var(--bone);}
+.log-detail .ld-title small{display:block;font-weight:400;font-size:10.5px;color:var(--chalk);margin-top:3px;}
+.ld-close{
+  flex:0 0 auto;width:26px;height:26px;border-radius:50%;
+  background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.35);
+  color:var(--bone);font-size:12px;line-height:1;cursor:pointer;
+}
+.ld-close:hover{background:rgba(255,255,255,.28);}
+.ld-label{
+  font-size:10px;letter-spacing:.09em;color:var(--chalk);
+  text-transform:uppercase;margin-top:2px;
+}
+.ld-scroll{
+  max-height:186px;overflow-y:auto;overflow-x:hidden;
+  display:flex;flex-direction:column;gap:6px;
+}
+.ld-scroll .sol-row{background:rgba(255,255,255,.09);}
+
+#selbox{
+  position:fixed;
+  border:1.5px solid rgba(130,200,255,.85);
+  background:rgba(130,200,255,.22);
+  border-radius:5px;pointer-events:none;z-index:40;display:none;
+}
+
+/* ---------------- live standings ---------------- */
+#board{
+  position:absolute;top:72px;right:16px;z-index:4;
+  min-width:172px;max-width:220px;
+  background:rgba(10,18,80,.82);border:1px solid var(--line);border-radius:12px;
+  overflow:hidden;display:none;backdrop-filter:blur(4px);
+}
+#board.show{display:block;}
+#board .bhead{
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding:8px 12px 7px;border-bottom:1px solid var(--line);
+  font-size:10.5px;color:var(--chalk);cursor:grab;
+}
+#board.dragging .bhead{cursor:grabbing;}
+#board .brows{padding:5px 6px 7px;}
+#board.collapsed .brows{display:none;}
+#board .brow{
+  display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center;
+  padding:4px 6px;border-radius:7px;font-size:12px;
+}
+#board .brow .r{color:var(--chalk);font-size:10px;text-align:right;}
+#board .brow .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#board .brow .p{font-family:Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;font-weight:700;font-size:15px;}
+#board .brow.me{background:rgba(246,243,234,.16);}
+#board .brow.me .r{color:var(--bone);}
+#board .brow.lead .p{color:var(--bone);text-decoration:underline;text-underline-offset:3px;}
+#board .brow.done{opacity:.55;}
+
+/* ---------------- overlay & panels ---------------- */
+.overlay{
+  position:absolute;inset:0;z-index:8;
+  background:var(--menu-bg);
+  display:flex;align-items:center;justify-content:center;
+  overflow-y:auto;padding:26px 0;
+}
+.overlay.fading{background:rgba(0,0,205,0);transition:background 460ms ease;}
+.panel{width:min(90%,420px);padding:0 22px;text-align:center;}
+.panel.panel-fade-out{opacity:0;transition:opacity 320ms ease;pointer-events:none;}
+.panel.wide{width:100%;max-width:none;padding:0;}
+.panel h1{font-family:Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;font-weight:700;font-size:30px;margin:0 0 10px;letter-spacing:-.01em;}
+.panel h1.huge{
+  font-size:clamp(96px,30vw,190px);
+  line-height:.86;
+  margin:0;
+  color:var(--bone);
+  letter-spacing:-.01em;
+  font-weight:700;
+}
+.panel h1.verdict{font-size:clamp(46px,14vw,92px);line-height:1;margin:2px 0 8px;color:var(--bone);}
+.panel .kicker{font-size:12px;color:var(--chalk);margin-bottom:12px;}
+.panel p{color:var(--chalk);font-size:13.5px;line-height:1.65;margin:0 0 10px;}
+.menu-body{width:min(90%,380px);margin-inline:auto;padding:22px 22px 0;}
+.tagline{color:var(--chalk);font-size:13.5px;margin:6px 0 24px;}
+.rules{
+  text-align:left;border:1px solid var(--line);border-radius:12px;
+  padding:15px 17px;margin:16px 0;font-size:12.5px;line-height:1.75;color:var(--chalk);
+  background:rgba(0,0,0,.16);
+}
+.rules b{color:var(--bone);font-weight:600;}
+.rules .rank-key{font-family:Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;color:var(--bone);}
+.go{
+  width:100%;margin-top:9px;padding:14px 24px;border-radius:12px;
+  font-size:13.5px;font-weight:600;cursor:pointer;
+  background:var(--bone);border:1px solid var(--bone);color:#231a06;
+  transition:opacity var(--fast), transform 90ms var(--ease);
+}
+.go:hover{opacity:.92;}
+.go:active{transform:scale(.985);}
+.go.ghost{background:transparent;color:var(--bone);border-color:var(--line);}
+.go.ghost:hover{background:rgba(246,243,234,.08);opacity:1;}
+.field{text-align:left;margin-top:13px;}
+.field label{display:block;font-size:11.5px;color:var(--chalk);margin-bottom:6px;}
+.field input{
+  width:100%;padding:12px 14px;border-radius:10px;
+  background:rgba(0,0,0,.24);border:1px solid var(--line);color:var(--bone);
+  font-family:'Space Grotesk',sans-serif;font-size:15px;letter-spacing:.04em;
+}
+.field input:focus{outline:none;border-color:var(--bone);}
+.code{font-family:Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;font-weight:700;font-size:42px;letter-spacing:.12em;margin:10px 0 8px;color:var(--bone);}
+.linkrow{display:flex;gap:8px;margin-top:10px;}
+.linkrow input{
+  flex:1;min-width:0;padding:10px 12px;border-radius:10px;
+  background:rgba(0,0,0,.24);border:1px solid var(--line);
+  color:var(--chalk);font-size:11px;font-family:'Space Grotesk',sans-serif;
+}
+.linkrow button{padding:0 15px;border-radius:10px;background:transparent;border:1px solid var(--line);color:var(--bone);font-size:11.5px;cursor:pointer;}
+.roster{text-align:left;margin:15px 0;max-height:168px;overflow-y:auto;}
+.roster-row{
+  display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+  padding:9px 4px;border-bottom:1px solid var(--line);font-size:13.5px;
+}
+.roster-row .sc{font-family:Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;font-weight:700;font-size:17px;color:var(--bone);}
+.roster-row.me{color:var(--bone);}
+.err{color:#f0a4a0;font-size:12.5px;margin-top:8px;min-height:15px;}
+.tiny{
+  background:none;border:none;color:var(--chalk);
+  font-family:'Space Grotesk',sans-serif;font-size:12px;
+  text-decoration:underline;cursor:pointer;margin-top:15px;
+}
+.wait{font-size:12px;color:var(--chalk);margin-top:13px;}
+.stat-row{display:flex;justify-content:center;gap:34px;margin:16px 0 20px;flex-wrap:wrap;}
+.stat-row .b{display:block;font-family:Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;font-weight:700;font-size:30px;}
+.stat-row .s{display:block;font-size:11px;color:var(--chalk);margin-top:2px;}
+
+/* ---------------- responsive ----------------
+   Sizes are already fluid via the :root clamps and --fit, so these
+   breakpoints only tune chrome that isn't part of the sizing system. */
+@media (max-width:760px){
+  header{padding:10px 12px 8px;}
+  .lockup .mark{font-size:23px;}
+  .lockup .sub{display:none;}
+  .stats{gap:12px;}
+  .stat .val{font-size:18px;}
+  #board{
+    position:static;top:auto;right:auto;
+    width:min(100%,var(--mobile-board-width,100%));max-width:none;min-width:0;
+    margin:18px auto 0;border-radius:11px;
+  }
+  #board .bhead{cursor:pointer;}
+  #board .bhead::after{content:'\25be';margin-left:8px;transition:transform 160ms var(--ease);}
+  #board.collapsed .bhead::after{transform:rotate(-90deg);}
+  #board .brow{font-size:11px;}
+  .votebar{right:6px;max-width:112px;}
+  .votelist{font-size:10px;padding:5px 8px;}
+  .btn.vote{padding:8px 10px;font-size:11px;}
+}
+@media (max-width:420px){
+  header{padding:8px 10px 6px;}
+  .lockup .mark{font-size:20px;}
+  .stats{gap:9px;}
+  .stat .lbl{font-size:9px;}
+  .stat .val{font-size:16px;}
+  :root{--mcw:22px;--mch:31px;}
+}
+@media (max-height:620px){
+  header{padding:8px 14px 6px;}
+  .stat .val{font-size:17px;}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="stagewrap">
+  <div id="play" class="pre-hud pre-phase3">
+    <header>
+      <div class="lockup">
+        <button class="mark" id="homeMark" type="button" title="Back to main menu" aria-label="Back to main menu">24</button>
+        <span class="sub" id="headerSub">use all four cards, once each</span>
+      </div>
+      <div class="stats">
+        <div class="stat" id="solvedStat"><span class="lbl">solved</span><span class="val" id="solvedVal">0</span></div>
+        <div class="stat time hidden" id="timeStat"><span class="lbl">time</span><span class="val" id="timeVal">30</span></div>
+        <div class="stat hidden" id="bestStat"><span class="lbl">best</span><span class="val" id="bestVal">0</span></div>
+        <button class="quit" id="quitBtn" title="Leave the table" aria-label="Leave the table">&#10005;</button>
+      </div>
+    </header>
+    <div class="rule"></div>
+    <div class="timer-track hidden" id="timerTrack"><div class="timer-fill" id="timerFill"></div></div>
+
+    <main class="table" id="table">
+      <div class="hand" id="hand"></div>
+
+      <div class="eqwrap" id="eqwrap">
+        <div class="eqinner" id="eqinner"></div>
+      </div>
+
+      <div class="readout" id="readout"></div>
+    </main>
+
+    <div class="controls" id="controls">
+      <div class="votebar hidden" id="votebar">
+        <div class="votelist" id="voteList"></div>
+        <button class="btn vote hidden" id="voteBtn">Vote to skip this hand</button>
+      </div>
+      <div class="ops" id="ops">
+        <button class="opkey" data-op="+">+</button>
+        <button class="opkey" data-op="&#8722;">&#8722;</button>
+        <button class="opkey" data-op="&#215;">&#215;</button>
+        <button class="opkey" data-op="&#247;">&#247;</button>
+      </div>
+      <div class="acts">
+        <button class="btn quiet" id="clearBtn">Clear</button>
+        <button class="btn quiet" id="solutionBtn">Solution</button>
+        <button class="btn primary" id="submitBtn" disabled>Submit</button>
+        <button class="btn primary hidden" id="nextBtn">Next</button>
+        <button class="btn quiet" id="skipBtn">Skip</button>
+      </div>
+    </div>
+
+    <div id="board">
+      <div class="bhead" id="boardHead"><span>standings</span><span id="boardClock">30s</span></div>
+      <div class="brows" id="boardRows"></div>
+    </div>
+
+    <div class="bottom-gap" aria-hidden="true"></div>
+
+    <div id="curtain" class="hidden"><span id="curtainWord"></span></div>
+  </div>
+
+  <aside id="solutions" class="hidden">
+    <div class="sol-head" id="solHead" role="button" tabindex="0" aria-expanded="true">
+      <div class="sol-title">Other solutions<small id="solCount">–</small></div>
+      <span class="sol-chev">&#9656;</span>
+    </div>
+    <div class="sol-body" id="solBody"></div>
+  </aside>
+  </div>
+
+  <div id="selbox"></div>
+
+  <!-- ===================== overlay ===================== -->
+  <div class="overlay" id="overlay">
+
+    <div class="panel wide" id="pMenu">
+      <h1 class="huge">24</h1>
+      <div class="menu-body">
+        <div class="tagline">Four cards. Four operations. One number.</div>
+        <button class="go" id="soloBtn">Play solo</button>
+        <button class="go ghost" id="createBtn">Create a lobby</button>
+        <button class="go ghost" id="joinBtn">Join a lobby</button>
+      </div>
+    </div>
+
+    <div class="panel hidden" id="pBrief">
+      <h1>How it works</h1>
+      <div class="rules">
+        Tap a card to send it to the equation, then an operator, then the next card.<br>
+        Drag a box around two or more cards on the bar to wrap them in parentheses.<br>
+        Tap a card on the bar to pull it back, or tap a parenthesis to ungroup.<br>
+        <span class="rank-key">A</span>=1 &middot; <span class="rank-key">J</span>=11 &middot; <span class="rank-key">Q</span>=12 &middot; <span class="rank-key">K</span>=13<br>
+        Every hand dealt here has at least one solution.
+      </div>
+      <p>No clock in solo. Skip as often as you like.</p>
+      <button class="go" id="briefStart">Deal me in</button>
+      <button class="tiny" id="briefBack">&larr; back</button>
+    </div>
+
+    <div class="panel hidden" id="pCreate">
+      <h1>Pick a name</h1>
+      <div class="field">
+        <label for="createName">Display name</label>
+        <input id="createName" maxlength="16" placeholder="e.g. River" />
+      </div>
+      <div class="err" id="createErr"></div>
+      <button class="go" id="createSubmit">Create lobby</button>
+      <button class="tiny" id="createBack">&larr; back</button>
+    </div>
+
+    <div class="panel hidden" id="pJoin">
+      <h1>Enter the code</h1>
+      <div class="field">
+        <label for="joinCode">Lobby code</label>
+        <input id="joinCode" maxlength="6" placeholder="e.g. 7K3QM" style="text-transform:uppercase" />
+      </div>
+      <div class="field">
+        <label for="joinName">Display name</label>
+        <input id="joinName" maxlength="16" placeholder="e.g. River" />
+      </div>
+      <div class="err" id="joinErr"></div>
+      <button class="go" id="joinSubmit">Join lobby</button>
+      <button class="tiny" id="joinBack">&larr; back</button>
+    </div>
+
+    <div class="panel hidden" id="pLobby">
+      <div class="kicker">Lobby code</div>
+      <div class="code" id="lobbyCode">-----</div>
+      <button class="go ghost" id="copyCode">Copy code</button>
+      <div class="linkrow">
+        <input id="lobbyLink" readonly />
+        <button id="copyLink">Copy</button>
+      </div>
+      <div class="rules">
+        Everyone gets the <b>same hand at the same moment</b>.<br>
+        <b>First correct answer</b> takes the round — everyone else is told instantly and the next hand is dealt.<br>
+        <b>Win by 2.</b> If a hand stalls for 30 seconds, anyone can call a vote to skip it.
+      </div>
+      <div class="field">
+        <label for="targetInput">Points to win (win by 2)</label>
+        <input id="targetInput" type="number" min="1" max="30" value="5" />
+      </div>
+      <div class="roster" id="lobbyRoster"></div>
+      <button class="go hidden" id="startMatch">Start match</button>
+      <div class="wait hidden" id="lobbyWait">Waiting for the host to start the match…</div>
+      <button class="tiny" id="lobbyLeave">leave lobby</button>
+    </div>
+
+    <div class="panel hidden" id="pOver">
+      <div class="kicker" id="overKicker">Session ended</div>
+      <h1 id="overTitle">Nice run</h1>
+      <div class="stat-row" id="overStats"></div>
+      <div class="roster hidden" id="overRoster"></div>
+      <div class="log-wrap hidden" id="logWrap">
+        <button class="log-toggle" id="logToggle" aria-expanded="false">
+          <span>Round-by-round</span><span class="log-chev">▸</span>
+        </button>
+        <div class="log-list hidden" id="matchLog"></div>
+      </div>
+      <button class="go" id="againBtn">Play again</button>
+      <div class="wait hidden" id="overWait">Waiting for the host to start a new match…</div>
+      <button class="go ghost hidden" id="menuBtn">Back to menu</button>
+      <button class="tiny hidden" id="overLeave">leave lobby</button>
+    </div>
+
+    <div class="panel hidden" id="pHostLeft">
+      <div class="kicker">Lobby closed</div>
+      <h1>The host left</h1>
+      <p>This lobby is no longer active. Head back to start or join another one.</p>
+      <button class="go" id="hostLeftMenuBtn">Back to menu</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* =====================================================================
+   1. CARDS + SOLVER
+   ===================================================================== */
+var SUITS = [{g:'\u2660',c:'black'},{g:'\u2665',c:'red'},{g:'\u2666',c:'red'},{g:'\u2663',c:'black'}];
+var EPS = 1e-6;
+function rankLabel(v){ return v===1?'A' : v===11?'J' : v===12?'Q' : v===13?'K' : String(v); }
+
+function canMake24(nums){
+  if(nums.length === 1) return Math.abs(nums[0]-24) < EPS;
+  for(var i=0;i<nums.length;i++){
+    for(var j=0;j<nums.length;j++){
+      if(i===j) continue;
+      var rest=[];
+      for(var k=0;k<nums.length;k++) if(k!==i && k!==j) rest.push(nums[k]);
+      var a=nums[i], b=nums[j];
+      var cands=[a+b, a-b, a*b];
+      if(Math.abs(b) > 1e-9) cands.push(a/b);
+      for(var m=0;m<cands.length;m++){
+        if(canMake24(rest.concat([cands[m]]))) return true;
+      }
+    }
+  }
+  return false;
+}
+function generatePuzzle(){
+  var vals, guard=0;
+  do{
+    vals = [0,0,0,0].map(function(){ return 1 + Math.floor(Math.random()*13); });
+    guard++;
+  } while(!canMake24(vals) && guard < 800);
+  return vals.map(function(v){ return { v:v, s: Math.floor(Math.random()*4) }; });
+}
+// Firestore rejects nested arrays, so each puzzle travels as a compact string.
+function encodePuzzle(p){ return p.map(function(c){ return c.v + '.' + c.s; }).join(','); }
+function decodePuzzle(s){
+  return String(s).split(',').map(function(t){
+    var parts = t.split('.');
+    return { v: parseInt(parts[0],10), s: parseInt(parts[1],10) };
+  });
+}
+
+/* ---- exact-rational expression evaluator ---- */
+function gcd(a,b){ a=Math.abs(a); b=Math.abs(b); while(b){ var t=a%b; a=b; b=t; } return a||1; }
+function rat(n,d){
+  if(d===0) return null;
+  if(d<0){ n=-n; d=-d; }
+  var g = gcd(n,d);
+  return { n:n/g, d:d/g };
+}
+function rAdd(a,b){ return rat(a.n*b.d + b.n*a.d, a.d*b.d); }
+function rSub(a,b){ return rat(a.n*b.d - b.n*a.d, a.d*b.d); }
+function rMul(a,b){ return rat(a.n*b.n, a.d*b.d); }
+function rDiv(a,b){ return b.n===0 ? null : rat(a.n*b.d, a.d*b.n); }
+
+// tokens: {t:'num',v} | {t:'op',v} | {t:'('} | {t:')'}
+function evaluate(tokens){
+  var pos = 0;
+  function peek(){ return tokens[pos]; }
+  function parseExpr(){
+    var left = parseTerm();
+    if(left === null) return null;
+    while(peek() && peek().t==='op' && (peek().v==='+' || peek().v==='\u2212')){
+      var op = tokens[pos++].v;
+      var right = parseTerm();
+      if(right === null) return null;
+      left = (op==='+') ? rAdd(left,right) : rSub(left,right);
+      if(left === null) return null;
+    }
+    return left;
+  }
+  function parseTerm(){
+    var left = parseFactor();
+    if(left === null) return null;
+    while(peek() && peek().t==='op' && (peek().v==='\u00d7' || peek().v==='\u00f7')){
+      var op = tokens[pos++].v;
+      var right = parseFactor();
+      if(right === null) return null;
+      left = (op==='\u00d7') ? rMul(left,right) : rDiv(left,right);
+      if(left === null) return null;
+    }
+    return left;
+  }
+  function parseFactor(){
+    var tk = peek();
+    if(!tk) return null;
+    if(tk.t==='num'){ pos++; return rat(tk.v,1); }
+    if(tk.t==='('){
+      pos++;
+      var inner = parseExpr();
+      if(inner === null) return null;
+      if(!peek() || peek().t !== ')') return null;
+      pos++;
+      return inner;
+    }
+    return null;
+  }
+  var res = parseExpr();
+  if(res === null || pos !== tokens.length) return null;
+  return res;
+}
+function ratText(r){
+  if(!r) return '\u2014';
+  if(r.d === 1) return String(r.n);
+  return String(Math.round((r.n/r.d)*100)/100);
+}
+
+/* ---- solution finder: every expression tree that reaches 24 ---- */
+function opPrec(op){ return (op==='+'||op==='\u2212') ? 1 : 2; }
+function solveAllTrees(puzzleCards){
+  var leaves = puzzleCards.map(function(c, idx){
+    return { val: rat(c.v,1), tree: { type:'leaf', v:c.v, cardIdx:idx } };
+  });
+  var out = [];
+  var OPS = ['+','\u2212','\u00d7','\u00f7'];
+  function recurse(nodes){
+    if(nodes.length === 1){
+      var v = nodes[0].val;
+      if(v && v.d === 1 && v.n === 24) out.push(nodes[0].tree);
+      return;
+    }
+    for(var i=0;i<nodes.length;i++){
+      for(var j=0;j<nodes.length;j++){
+        if(i===j) continue;
+        var rest = [];
+        for(var k=0;k<nodes.length;k++) if(k!==i && k!==j) rest.push(nodes[k]);
+        var a = nodes[i], b = nodes[j];
+        for(var oi=0; oi<OPS.length; oi++){
+          var op = OPS[oi], nv;
+          if(op==='+') nv = rAdd(a.val,b.val);
+          else if(op==='\u2212') nv = rSub(a.val,b.val);
+          else if(op==='\u00d7') nv = rMul(a.val,b.val);
+          else nv = rDiv(a.val,b.val);
+          if(nv === null) continue;
+          var node = { val:nv, tree:{ type:'op', op:op, l:a.tree, r:b.tree } };
+          recurse(rest.concat([node]));
+        }
+      }
+    }
+  }
+  recurse(leaves);
+  return out;
+}
+// Canonical form: +/× are flattened and sorted (order/grouping doesn't
+// matter — "just a rearrangement of terms"); −/÷ stay structural, since
+// swapping their operands or grouping genuinely changes the expression.
+// Canonical form: chains of the SAME family (+/− or ×/÷) are flattened into
+// a signed/reciprocal multiset and sorted, so a-b+c, a+c-b, and c-b+a all
+// canonicalize identically — they're just the same terms rearranged. This
+// does not unify distribution (e.g. (a-b)*c stays distinct from a*c-b*c),
+// since that's a genuinely different computation, not just a rearrangement.
+function collectAdditive(tree, sign, out){
+  if(tree.type==='op' && (tree.op==='+' || tree.op==='\u2212')){
+    collectAdditive(tree.l, sign, out);
+    collectAdditive(tree.r, tree.op==='+' ? sign : -sign, out);
+  } else {
+    out.push({ sign:sign, tree:tree });
+  }
+}
+function collectMultiplicative(tree, recip, out){
+  if(tree.type==='op' && (tree.op==='\u00d7' || tree.op==='\u00f7')){
+    collectMultiplicative(tree.l, recip, out);
+    collectMultiplicative(tree.r, tree.op==='\u00d7' ? recip : !recip, out);
+  } else {
+    out.push({ recip:recip, tree:tree });
+  }
+}
+function canonFactor(tree){
+  // a single multiplicative factor: a leaf, or an opaque +/- block
+  if(tree.type==='leaf') return 'n' + tree.v;
+  return '(' + canonAdd(tree) + ')';
+}
+function canonMul(tree){
+  var factors = [];
+  collectMultiplicative(tree, false, factors);
+  var parts = factors.map(function(f){ return (f.recip?'/':'*') + canonFactor(f.tree); }).sort();
+  return '\u00d7[' + parts.join(',') + ']';
+}
+function canonTerm(tree){
+  // a single additive term: a leaf, or an opaque ×/÷ block
+  if(tree.type==='op' && (tree.op==='\u00d7' || tree.op==='\u00f7')) return canonMul(tree);
+  return canonFactor(tree);
+}
+function canonAdd(tree){
+  var terms = [];
+  collectAdditive(tree, 1, terms);
+  var parts = terms.map(function(t){ return (t.sign<0?'-':'+') + canonTerm(t.tree); }).sort();
+  return '\u03a3[' + parts.join(',') + ']';
+}
+function canonTree(tree){
+  if(tree.type==='leaf') return 'n' + tree.v;
+  if(tree.op==='+' || tree.op==='\u2212') return canonAdd(tree);
+  return canonMul(tree);
+}
+function uniqueSolutions(puzzleCards){
+  var all = solveAllTrees(puzzleCards);
+  var seen = {}, uniq = [];
+  all.forEach(function(t){
+    var c = canonTree(t);
+    if(!seen[c]){ seen[c] = true; uniq.push(t); }
+  });
+  return uniq;
+}
+// Renders a solution tree to a flat left-to-right token stream (cards,
+// operators, and minimal parentheses) using standard precedence rules —
+// the same grammar the equation bar itself evaluates against.
+function treeToTokens(tree){
+  function go(node, parentPrec){
+    if(node.type==='leaf') return { toks:[{type:'card', cardIdx:node.cardIdx}], prec:99 };
+    var myPrec = opPrec(node.op);
+    var L = go(node.l, myPrec), R = go(node.r, myPrec);
+    var leftToks = L.toks;
+    if(L.prec < myPrec) leftToks = [{type:'('}].concat(leftToks, [{type:')'}]);
+    var rightToks = R.toks;
+    var nonAssoc = (node.op==='\u2212' || node.op==='\u00f7');
+    if(R.prec < myPrec || (nonAssoc && R.prec === myPrec)) rightToks = [{type:'('}].concat(rightToks, [{type:')'}]);
+    return { toks: leftToks.concat([{type:'op', op:node.op}], rightToks), prec: myPrec };
+  }
+  return go(tree, 0).toks;
+}
+// Converts a linear token stream (cards / ops / paren markers) into this
+// game's eqItems + groups shape, correctly nesting parens via a stack.
+function tokensToEquationState(tokens){
+  var items = [], grps = [], stack = [];
+  tokens.forEach(function(tok){
+    if(tok.type === '(') stack.push(items.length);
+    else if(tok.type === ')') grps.push({ id: groupSeq++, start: stack.pop(), end: items.length-1 });
+    else if(tok.type === 'card') items.push({ type:'card', id: tok.cardIdx });
+    else items.push({ type:'op', op: tok.op });
+  });
+  return { items:items, groups:grps };
+}
+/* A whole equation packs into a short string — card indices 0-3, operator
+   glyphs, and parens — small enough to ride along in a Firestore doc. */
+function eqTokensToString(toks){
+  return toks.map(function(t){
+    if(t.type === 'card') return String(t.cardIdx);
+    if(t.type === 'op') return t.op;
+    return t.type;
+  }).join('');
+}
+function parseEqString(s){
+  var toks = [];
+  String(s || '').split('').forEach(function(ch){
+    if(ch === '(' || ch === ')') toks.push({ type:ch });
+    else if(ch >= '0' && ch <= '9') toks.push({ type:'card', cardIdx: parseInt(ch,10) });
+    else toks.push({ type:'op', op: ch });
+  });
+  return toks;
+}
+// Rebuilds the expression tree from a token list so canonTree can compare
+// a player's equation against the enumerated solution set.
+function tokensToTree(toks, cards){
+  var pos = 0;
+  function peek(){ return toks[pos]; }
+  function expr(){
+    var l = term(); if(!l) return null;
+    while(peek() && peek().type === 'op' && (peek().op === '+' || peek().op === '\u2212')){
+      var op = toks[pos++].op, r = term();
+      if(!r) return null;
+      l = { type:'op', op:op, l:l, r:r };
+    }
+    return l;
+  }
+  function term(){
+    var l = factor(); if(!l) return null;
+    while(peek() && peek().type === 'op' && (peek().op === '\u00d7' || peek().op === '\u00f7')){
+      var op = toks[pos++].op, r = factor();
+      if(!r) return null;
+      l = { type:'op', op:op, l:l, r:r };
+    }
+    return l;
+  }
+  function factor(){
+    var t = peek();
+    if(!t) return null;
+    if(t.type === 'card'){
+      pos++;
+      var c = cards[t.cardIdx];
+      return c ? { type:'leaf', v:c.v, cardIdx:t.cardIdx } : null;
+    }
+    if(t.type === '('){
+      pos++;
+      var inner = expr();
+      if(!inner || !peek() || peek().type !== ')') return null;
+      pos++;
+      return inner;
+    }
+    return null;
+  }
+  var out = expr();
+  return (out && pos === toks.length) ? out : null;
+}
+
+/* =====================================================================
+   2. DOM HANDLES
+   ===================================================================== */
+function $(id){ return document.getElementById(id); }
+var playEl=$('play');
+var handEl=$('hand'), eqwrap=$('eqwrap'), eqinner=$('eqinner'), readoutEl=$('readout');
+var tableEl=$('table'), controlsEl=$('controls');
+var opKeys = Array.prototype.slice.call(document.querySelectorAll('.opkey'));
+var clearBtn=$('clearBtn'), submitBtn=$('submitBtn'), skipBtn=$('skipBtn'), solutionBtn=$('solutionBtn');
+var nextBtn=$('nextBtn');
+var solutionsEl=$('solutions'), solBody=$('solBody'), solCount=$('solCount'), solHead=$('solHead');
+var solvedVal=$('solvedVal'), solvedStat=$('solvedStat'), bestVal=$('bestVal'), bestStat=$('bestStat');
+var timeStat=$('timeStat'), timeVal=$('timeVal');
+var timerTrack=$('timerTrack'), timerFill=$('timerFill');
+var overlay=$('overlay'), selbox=$('selbox');
+var boardEl=$('board'), boardRows=$('boardRows'), boardClock=$('boardClock'), boardHead=$('boardHead');
+var boardDrag = null, boardHasCustomPosition = false;
+function isSkinnyBoard(){ return window.matchMedia('(max-width:760px)').matches; }
+function updateBoardLayout(){
+  var acts = controlsEl.querySelector('.acts');
+  var ops = controlsEl.querySelector('.ops');
+  var clusterWidth = Math.max(acts ? acts.getBoundingClientRect().width : 0, ops ? ops.getBoundingClientRect().width : 0);
+  if(clusterWidth) boardEl.style.setProperty('--mobile-board-width', Math.ceil(clusterWidth) + 'px');
+
+  if(isSkinnyBoard() || boardHasCustomPosition || !boardEl.classList.contains('show')) return;
+  var playRect = playEl.getBoundingClientRect();
+  var hudBottom = 0;
+  ['header', '.rule', '.timer-track'].forEach(function(sel){
+    var el = playEl.querySelector(sel);
+    if(el && !el.classList.contains('hidden')) hudBottom = Math.max(hudBottom, el.getBoundingClientRect().bottom);
+  });
+  boardEl.style.left = 'auto';
+  boardEl.style.right = '16px';
+  boardEl.style.top = Math.ceil(hudBottom - playRect.top + 12) + 'px';
+}
+boardEl.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+boardHead.addEventListener('click', function(){
+  if(!isSkinnyBoard()) return;
+  boardEl.classList.toggle('collapsed');
+  fitLayout();
+});
+boardHead.addEventListener('pointerdown', function(e){
+  if(isSkinnyBoard() || (e.button !== undefined && e.button !== 0)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  var box = boardEl.getBoundingClientRect();
+  boardDrag = { id:e.pointerId, x:e.clientX - box.left, y:e.clientY - box.top };
+  boardHasCustomPosition = true;
+  boardEl.classList.add('dragging');
+  boardEl.style.left = (box.left - playEl.getBoundingClientRect().left) + 'px';
+  boardEl.style.top = (box.top - playEl.getBoundingClientRect().top) + 'px';
+  boardEl.style.right = 'auto';
+  boardHead.setPointerCapture(e.pointerId);
+});
+boardHead.addEventListener('pointermove', function(e){
+  if(!boardDrag || e.pointerId !== boardDrag.id) return;
+  var playRect = playEl.getBoundingClientRect();
+  var maxLeft = Math.max(0, playRect.width - boardEl.offsetWidth);
+  var maxTop = Math.max(0, playRect.height - boardEl.offsetHeight);
+  var left = Math.max(0, Math.min(maxLeft, e.clientX - playRect.left - boardDrag.x));
+  var top = Math.max(0, Math.min(maxTop, e.clientY - playRect.top - boardDrag.y));
+  boardEl.style.left = Math.round(left) + 'px';
+  boardEl.style.top = Math.round(top) + 'px';
+});
+function finishBoardDrag(e){
+  if(!boardDrag || e.pointerId !== boardDrag.id) return;
+  if(boardHead.hasPointerCapture(e.pointerId)) boardHead.releasePointerCapture(e.pointerId);
+  boardDrag = null;
+  boardEl.classList.remove('dragging');
+}
+boardHead.addEventListener('pointerup', finishBoardDrag);
+boardHead.addEventListener('pointercancel', finishBoardDrag);
+var curtain=$('curtain'), curtainWord=$('curtainWord');
+var votebar=$('votebar'), voteList=$('voteList'), voteBtn=$('voteBtn');
+var logWrap=$('logWrap'), logToggle=$('logToggle'), matchLog=$('matchLog');
+var panels = {
+  menu:$('pMenu'), brief:$('pBrief'), create:$('pCreate'),
+  join:$('pJoin'), lobby:$('pLobby'), over:$('pOver'), hostLeft:$('pHostLeft')
+};
+function wait(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+function esc(s){
+  return String(s).replace(/[&<>"']/g, function(m){
+    return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m];
+  });
+}
+function showPanel(name){
+  Object.keys(panels).forEach(function(k){ panels[k].classList.add('hidden'); });
+  panels[name].classList.remove('hidden');
+  overlay.classList.remove('hidden');
+  overlay.classList.remove('fading');
+}
+
+/* =====================================================================
+   2b. SOUND — tiny synthesised cues, no samples to load.
+   ===================================================================== */
+var actx = null, noiseBuf = null;
+function ac(){
+  try{
+    if(!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if(actx.state === 'suspended') actx.resume();
+    return actx;
+  }catch(e){ return null; }
+}
+function getNoiseBuf(c){
+  if(!noiseBuf){
+    var len = Math.floor(c.sampleRate * 0.24);
+    noiseBuf = c.createBuffer(1, len, c.sampleRate);
+    var data = noiseBuf.getChannelData(0);
+    for(var i=0;i<len;i++) data[i] = (Math.random()*2 - 1) * (1 - i/len);
+  }
+  return noiseBuf;
+}
+function env(gain, t, peak, attack, decay){
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.exponentialRampToValueAtTime(peak, t + attack);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay);
+}
+// Duller, lower, "clicky" — a card settling into the equation. Deliberately
+// quieter and lower-pitched than the deal sound so the two never get mixed
+// up. Only ever played when a card is *added*; removal is silent.
+function playEquationAddSound(){
+  var c = ac(); if(!c) return;
+  var t = c.currentTime;
+  var osc = c.createOscillator(), g = c.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(240, t);
+  osc.frequency.exponentialRampToValueAtTime(118, t + 0.05);
+  env(g, t, 0.13, 0.003, 0.05);
+  osc.connect(g); g.connect(c.destination);
+  osc.start(t); osc.stop(t + 0.08);
+  // a whisper of high-passed noise gives it a dry "click" edge
+  var n = c.createBufferSource(); n.buffer = getNoiseBuf(c);
+  var hp = c.createBiquadFilter();
+  hp.type = 'highpass'; hp.frequency.setValueAtTime(1000, t);
+  var ng = c.createGain();
+  ng.gain.setValueAtTime(0.0001, t);
+  ng.gain.exponentialRampToValueAtTime(0.04, t + 0.002);
+  ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.02);
+  n.connect(hp); hp.connect(ng); ng.connect(c.destination);
+  n.start(t); n.stop(t + 0.03);
+}
+// Brighter, two-note confirmation — clearly not the card sound.
+function playSubmitSound(){
+  var c = ac(); if(!c) return;
+  var t = c.currentTime;
+  [[523.25, 0], [783.99, 0.075]].forEach(function(pair){
+    var osc = c.createOscillator(), g = c.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(pair[0], t + pair[1]);
+    env(g, t + pair[1], 0.13, 0.006, 0.13);
+    osc.connect(g); g.connect(c.destination);
+    osc.start(t + pair[1]); osc.stop(t + pair[1] + 0.16);
+  });
+}
+// A light paper page-flip tap — a quick, high-pitched noise burst.
+function playDealSound(){
+  var c = ac(); if(!c) return;
+  var t = c.currentTime;
+  var src = c.createBufferSource(); src.buffer = getNoiseBuf(c);
+  var bp = c.createBiquadFilter();
+  bp.type = 'bandpass'; bp.Q.value = 1.4;
+  bp.frequency.setValueAtTime(2200, t);
+  bp.frequency.exponentialRampToValueAtTime(1300, t + 0.05);
+  var g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.13, t + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+  src.connect(bp); bp.connect(g); g.connect(c.destination);
+  src.start(t); src.stop(t + 0.08);
+}
+// browsers need a gesture before audio will play
+document.addEventListener('pointerdown', function unlockAudio(){
+  ac();
+  document.removeEventListener('pointerdown', unlockAudio);
+}, { once:true });
+
+/* =====================================================================
+   3. BOARD STATE
+   ===================================================================== */
+var puzzle = [];       // [{v,s}] x4
+var cardEls = [];      // element per card index
+var slotEls = [];      // slot per card index
+var eqItems = [];      // [{type:'card',id} | {type:'op',op}]
+var groups = [];       // [{id,start,end}] token indices, disjoint
+var groupSeq = 1;
+var opElCache = {};    // token index -> element
+var parenEls = {};     // group id -> {open, close}
+var locked = true;
+var eqScale = 1;
+var mode = null;       // 'solo' | 'mp'
+var solved = 0, best = 0;
+
+function cardCount(){ return eqItems.filter(function(t){ return t.type==='card'; }).length; }
+function lastTok(){ return eqItems[eqItems.length-1]; }
+function inEq(id){ return eqItems.some(function(t){ return t.type==='card' && t.id===id; }); }
+function groupContaining(i){
+  for(var k=0;k<groups.length;k++) if(groups[k].start <= i && i <= groups[k].end) return groups[k];
+  return null;
+}
+
+/* ---------------- hand construction ---------------- */
+function buildHand(){
+  handEl.innerHTML = '';
+  eqinner.innerHTML = '';
+  cardEls = []; slotEls = [];
+  opElCache = {}; parenEls = {};
+  puzzle.forEach(function(c, idx){
+    var slot = document.createElement('div');
+    slot.className = 'slot';
+    handEl.appendChild(slot);
+    slotEls.push(slot);
+
+    var suit = SUITS[c.s] || SUITS[0];
+    var el = document.createElement('div');
+    el.className = 'card ' + suit.c;
+    el.dataset.id = String(idx);
+    el.setAttribute('role','button');
+    el.setAttribute('aria-label', rankLabel(c.v) + ' ' + suit.g);
+    el.innerHTML =
+      '<span class="corner">' + rankLabel(c.v) + '</span>' +
+      '<span class="rank">' + rankLabel(c.v) + '</span>' +
+      '<span class="suit">' + suit.g + '</span>';
+    el.addEventListener('click', function(){ onCardClick(idx); });
+    slot.appendChild(el);
+    cardEls.push(el);
+  });
+}
+
+/* ---------------- FLIP ---------------- */
+function flipTargets(){
+  var out = cardEls.slice();
+  Array.prototype.forEach.call(eqinner.children, function(el){
+    if(out.indexOf(el) === -1) out.push(el);
+  });
+  return out;
+}
+function flipCapture(){
+  var m = new Map();
+  flipTargets().forEach(function(el){ m.set(el, el.getBoundingClientRect()); });
+  return m;
+}
+function parentScaleOf(el){ return eqinner.contains(el) ? (eqScale || 1) : 1; }
+function flipPlay(first){
+  flipTargets().forEach(function(el){
+    var f = first.get(el);
+    var l = el.getBoundingClientRect();
+    if(!f){
+      if(el.className.indexOf('card') === -1){
+        el.classList.remove('pop-in');
+        void el.offsetWidth;
+        el.classList.add('pop-in');
+        // fill-mode 'both' would otherwise pin this element's transform and
+        // block any later FLIP move, so drop the class once it has played
+        setTimeout(function(){ el.classList.remove('pop-in'); }, 190);
+      }
+      return;
+    }
+    el.classList.remove('pop-in');
+    var dx = f.left - l.left, dy = f.top - l.top;
+    var sc = l.width > 0 ? (f.width / l.width) : 1;
+    if(Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && Math.abs(sc-1) < 0.005) return;
+    var ps = parentScaleOf(el) || 1;
+    // an interrupted prior move never fires transitionend, so its cleanup
+    // listener would otherwise leak and can fire out of turn later
+    if(el._flipDone){ el.removeEventListener('transitionend', el._flipDone); }
+    el.style.willChange = 'transform';
+    el.style.transition = 'none';
+    el.style.transformOrigin = 'top left';
+    el.style.transform = 'translate(' + (dx/ps) + 'px,' + (dy/ps) + 'px) scale(' + sc + ')';
+    void el.offsetWidth;
+    el.style.transition = 'transform 200ms cubic-bezier(.22,.85,.28,1)';
+    el.style.transform = '';
+    var done = function(e){
+      if(e && e.propertyName !== 'transform') return;
+      el.style.transition = '';
+      el.style.transformOrigin = '';
+      el.style.willChange = '';
+      el.removeEventListener('transitionend', done);
+      el._flipDone = null;
+    };
+    el._flipDone = done;
+    el.addEventListener('transitionend', done);
+  });
+}
+
+/* ---------------- equation rendering ---------------- */
+/* Measures the play column's natural height against what the viewport
+   actually offers and dials the global --fit multiplier down until it
+   fits. Runs on resize and after any layout-affecting change, so the
+   cards are never clipped regardless of window size or aspect ratio. */
+var currentFit = 1;
+var TARGET_BOTTOM_GAP = 90; // distance from the window's bottom edge to Submit's bottom edge
+function naturalPlayHeight(){
+  var h = 0;
+  var head = playEl.querySelector('header');
+  var rule = playEl.querySelector('.rule');
+  if(head) h += head.offsetHeight;
+  if(rule) h += rule.offsetHeight;
+  if(timerTrack && !timerTrack.classList.contains('hidden')) h += timerTrack.offsetHeight;
+  var cs = getComputedStyle(tableEl);
+  var gap = parseFloat(cs.rowGap) || 0;
+  var pad = (parseFloat(cs.paddingTop)||0) + (parseFloat(cs.paddingBottom)||0);
+  var kids = [handEl, eqwrap, readoutEl];
+  var inner = 0, shown = 0;
+  kids.forEach(function(k){
+    if(!k) return;
+    inner += k.offsetHeight;
+    shown++;
+  });
+  h += inner + pad + gap * Math.max(0, shown - 1);
+  h += controlsEl.offsetHeight;
+  if(boardEl.classList.contains('show') && getComputedStyle(boardEl).position === 'static'){
+    h += boardEl.offsetHeight;
+  }
+  // the reserved gap counts toward the budget too, so --fit shrinks the
+  // cards/buttons first to protect the full 90px wherever that's possible
+  h += TARGET_BOTTOM_GAP;
+  return h;
+}
+function fitLayout(){
+  var avail = playEl.clientHeight;
+  if(!avail){ fitEquation(); return; }
+  var f = 1, guard = 0;
+  document.documentElement.style.setProperty('--fit', '1');
+  // shrink in small steps until the column plus the full 90px gap fits
+  // (or we hit the floor — genuinely tiny viewports fall back to letting
+  // the CSS flex-shrink on .bottom-gap absorb whatever's left, so cards
+  // are never clipped even if that means less than 90px underneath)
+  while(naturalPlayHeight() > avail && f > 0.4 && guard < 30){
+    f = Math.round((f - 0.04) * 100) / 100;
+    document.documentElement.style.setProperty('--fit', String(f));
+    guard++;
+  }
+  // widthwise: the hand must fit too, since cards never wrap
+  var wGuard = 0;
+  while(handEl.scrollWidth > handEl.clientWidth + 1 && f > 0.4 && wGuard < 30){
+    f = Math.round((f - 0.04) * 100) / 100;
+    document.documentElement.style.setProperty('--fit', String(f));
+    wGuard++;
+  }
+  currentFit = f;
+  fitEquation();
+  updateBoardLayout();
+}
+function fitEquation(){
+  eqinner.style.transform = '';
+  eqinner.style.setProperty('--eqs', '1');
+  var avail = eqwrap.clientWidth - 16;
+  var w = eqinner.scrollWidth;
+  eqScale = (w > avail && w > 0 && avail > 0) ? Math.max(0.35, avail / w) : 1;
+  if(eqScale < 1){
+    eqinner.style.transform = 'scale(' + eqScale + ')';
+    eqinner.style.setProperty('--eqs', String(eqScale));
+  }
+}
+function makeOpEl(i, op){
+  var el = opElCache[i];
+  if(el && el.dataset.op === op) return el;
+  el = document.createElement('span');
+  el.className = 'eqop';
+  el.dataset.op = op;
+  el.textContent = op;
+  opElCache[i] = el;
+  return el;
+}
+function setParenHot(gid, on){
+  var p = parenEls[gid];
+  if(!p) return;
+  p.open.classList.toggle('hot', on);
+  p.close.classList.toggle('hot', on);
+}
+function makeParenEls(g){
+  if(parenEls[g.id]) return parenEls[g.id];
+  function mk(ch){
+    var el = document.createElement('span');
+    el.className = 'paren';
+    el.textContent = ch;
+    el.dataset.gid = String(g.id);
+    el.setAttribute('role','button');
+    el.setAttribute('aria-label','Remove these parentheses');
+    el.addEventListener('mouseenter', function(){ setParenHot(g.id, true); });
+    el.addEventListener('mouseleave', function(){ setParenHot(g.id, false); });
+    el.addEventListener('click', function(e){ e.stopPropagation(); removeGroup(g.id); });
+    return el;
+  }
+  parenEls[g.id] = { open: mk('('), close: mk(')') };
+  return parenEls[g.id];
+}
+
+function render(animate){
+  var first = (animate === false) ? null : flipCapture();
+
+  while(eqinner.firstChild) eqinner.removeChild(eqinner.firstChild);
+
+  // opens sort by start (ties: widest/outer group first);
+  // closes sort by end (ties: innermost group — larger start — first)
+  var opensSorted = groups.slice().sort(function(a,b){
+    return (a.start - b.start) || ((b.end-b.start) - (a.end-a.start));
+  });
+  var closesSorted = groups.slice().sort(function(a,b){
+    return (a.end - b.end) || (b.start - a.start);
+  });
+  if(eqItems.length === 0){
+    var hint = document.createElement('span');
+    hint.className = 'eqhint';
+    hint.textContent = 'tap a card to start building';
+    eqinner.appendChild(hint);
+  }
+  eqItems.forEach(function(tok, i){
+    opensSorted.filter(function(g){ return g.start === i; })
+          .forEach(function(g){ eqinner.appendChild(makeParenEls(g).open); });
+    if(tok.type === 'card'){
+      eqinner.appendChild(cardEls[tok.id]);
+    } else {
+      eqinner.appendChild(makeOpEl(i, tok.op));
+    }
+    closesSorted.filter(function(g){ return g.end === i; })
+          .forEach(function(g){ eqinner.appendChild(makeParenEls(g).close); });
+  });
+
+  // cards not on the bar return to their slot
+  cardEls.forEach(function(el, idx){
+    if(!inEq(idx) && el.parentElement !== slotEls[idx]) slotEls[idx].appendChild(el);
+  });
+
+  // drop caches for tokens / groups that no longer exist
+  Object.keys(opElCache).forEach(function(k){
+    var i = parseInt(k,10);
+    if(!eqItems[i] || eqItems[i].type !== 'op') delete opElCache[k];
+  });
+  Object.keys(parenEls).forEach(function(k){
+    var alive = groups.some(function(g){ return String(g.id) === k; });
+    if(!alive) delete parenEls[k];
+  });
+
+  fitEquation();
+  if(first) flipPlay(first);
+  syncControls();
+}
+
+function syncControls(){
+  var n = cardCount();
+  var isMp = (mode === 'mp');
+  var canOp = !locked && n > 0 && n < 4;
+  opKeys.forEach(function(b){ b.disabled = !canOp; });
+  submitBtn.disabled = locked || n !== 4;
+  clearBtn.disabled = locked || eqItems.length === 0;
+
+  // Solution / Next / Skip are solo affordances — multiplayer is a race.
+  solutionBtn.classList.toggle('hidden', isMp);
+  skipBtn.classList.toggle('hidden', isMp);
+  if(isMp) nextBtn.classList.add('hidden');
+  solutionBtn.disabled = locked;
+  nextBtn.disabled = locked;
+  skipBtn.disabled = locked;
+  skipBtn.textContent = 'Skip';
+}
+
+/* ---------------- readout ---------------- */
+var readoutTimer = null;
+// withLink appends the clickable "show other solutions" affordance, which
+// is only ever offered once the puzzle has been solved correctly.
+function say(text, kind, withLink){
+  clearTimeout(readoutTimer);
+  readoutEl.textContent = '';
+  readoutEl.appendChild(document.createTextNode(text));
+  if(withLink && canShowOthers){
+    var b = document.createElement('button');
+    b.className = 'linkish';
+    b.type = 'button';
+    b.textContent = 'show other solutions';
+    b.addEventListener('click', function(e){
+      e.stopPropagation();
+      openSolutionsPanel();
+    });
+    readoutEl.appendChild(b);
+  }
+  readoutEl.className = 'readout show' + (kind ? ' ' + kind : '');
+}
+function sayTemp(text, kind, ms){
+  say(text, kind);
+  clearTimeout(readoutTimer);
+  readoutTimer = setTimeout(clearSay, ms || 1200);
+}
+function clearSay(){
+  clearTimeout(readoutTimer);
+  readoutEl.className = 'readout';
+  readoutEl.textContent = '';
+}
+function nudge(){
+  eqwrap.classList.remove('nudge');
+  void eqwrap.offsetWidth;
+  eqwrap.classList.add('nudge');
+  setTimeout(function(){ eqwrap.classList.remove('nudge'); }, 320);
+}
+
+/* ---------------- interactions ---------------- */
+function onCardClick(id){
+  if(locked || suppressClick) return;
+  var idx = -1;
+  for(var i=0;i<eqItems.length;i++){
+    if(eqItems[i].type==='card' && eqItems[i].id===id){ idx = i; break; }
+  }
+  if(idx >= 0){ removeFrom(idx); return; }   // removal is silent
+  if(cardCount() >= 4) return;
+  var last = lastTok();
+  clearSay();
+  if(last && last.type === 'card'){
+    // no operator was chosen between the two cards — default to addition
+    eqItems.push({ type:'op', op:'+' });
+  }
+  eqItems.push({ type:'card', id:id });
+  playEquationAddSound();
+  render();
+}
+function onOpClick(op){
+  if(locked || suppressClick) return;
+  var n = cardCount();
+  if(n === 0){ sayTemp('put a card down first', 'note', 1100); nudge(); return; }
+  if(n >= 4){ sayTemp('all four cards are down \u2014 hit submit', 'note', 1300); return; }
+  var last = lastTok();
+  clearSay();
+  if(last && last.type === 'op'){
+    last.op = op;                        // swap the pending operator
+    delete opElCache[eqItems.length-1];
+  } else {
+    eqItems.push({ type:'op', op:op });
+  }
+  render();
+}
+function removeFrom(i){
+  // this card and everything to its right leaves the bar; the operator
+  // that connected it to the previous term goes with it, and any
+  // parenthesised term it belonged to is dissolved
+  var cut = i;
+  if(cut > 0 && eqItems[cut-1] && eqItems[cut-1].type === 'op') cut = cut - 1;
+  eqItems = eqItems.slice(0, cut);
+  groups = groups.filter(function(g){ return g.end < cut; });
+  clearSay();
+  render();
+}
+function clearEquation(){
+  if(locked) return;
+  eqItems = [];
+  groups = [];
+  clearSay();
+  render();
+}
+function removeGroup(gid){
+  if(locked || suppressClick) return;
+  groups = groups.filter(function(g){ return g.id !== gid; });
+  render();
+}
+
+function buildTokens(){
+  var sorted = groups.slice().sort(function(a,b){ return a.start - b.start; });
+  var out = [];
+  eqItems.forEach(function(tok, i){
+    sorted.filter(function(g){ return g.start === i; }).forEach(function(){ out.push({t:'('}); });
+    if(tok.type === 'card') out.push({t:'num', v: puzzle[tok.id].v});
+    else out.push({t:'op', v: tok.op});
+    sorted.filter(function(g){ return g.end === i; }).forEach(function(){ out.push({t:')'}); });
+  });
+  return out;
+}
+// The same walk, but emitting display tokens so the equation can be
+// stored, shipped to other players, and redrawn later.
+function currentEqTokens(){
+  var opensSorted = groups.slice().sort(function(a,b){
+    return (a.start - b.start) || ((b.end-b.start) - (a.end-a.start));
+  });
+  var closesSorted = groups.slice().sort(function(a,b){
+    return (a.end - b.end) || (b.start - a.start);
+  });
+  var out = [];
+  eqItems.forEach(function(tok, i){
+    opensSorted.filter(function(g){ return g.start === i; }).forEach(function(){ out.push({type:'('}); });
+    if(tok.type === 'card') out.push({ type:'card', cardIdx: tok.id });
+    else out.push({ type:'op', op: tok.op });
+    closesSorted.filter(function(g){ return g.end === i; }).forEach(function(){ out.push({type:')'}); });
+  });
+  return out;
+}
+
+/* ---------------- submission / progression ----------------
+   Solo: a correct answer reveals Next and leaves the hand up to explore.
+   Multiplayer: a correct answer is a claim on the round — it is stamped
+   with the elapsed time and the host decides who was first. */
+var puzzleSolved = false;   // this puzzle has been solved at least once
+var canShowOthers = false;  // the "show other solutions" link is unlocked
+
+function onSubmit(){
+  if(locked || cardCount() !== 4) return;
+  playSubmitSound();
+  var val = evaluate(buildTokens());
+  if(val === null){ say("that one won't evaluate \u2014 check the division", 'bad'); nudge(); return; }
+  var correct = (val.d === 1 && val.n === 24);
+
+  if(mode === 'mp'){
+    if(!correct){
+      say('= ' + ratText(val) + ' \u00b7 not 24', 'bad');
+      nudge();
+      return;
+    }
+    if(mp.claimed) return;
+    mp.claimed = true;
+    var ms = Math.max(0, Date.now() - mp.roundStartAt);
+    locked = true;
+    syncControls();
+    say('24 in ' + (ms/1000).toFixed(2) + 's \u2014 checking\u2026', 'good');
+    updateMe({
+      solvedRound: mp.round,
+      solvedMs: ms,
+      solvedEq: eqTokensToString(currentEqTokens())
+    });
+    return;
+  }
+
+  if(correct){
+    var firstTime = !puzzleSolved;
+    puzzleSolved = true;
+    canShowOthers = true;
+    nextBtn.classList.remove('hidden');
+    if(firstTime) onSolved();
+    ensureSolutionCache();
+    var n = solutionCache.count;
+    say(n > 1
+      ? '= 24 \u00b7 solved \u2014 ' + n + ' non-identical solutions in total \u00b7 '
+      : '= 24 \u00b7 solved \u2014 this is the only solution \u00b7 ', 'good', n > 1);
+    syncControls();
+    fitLayout();
+  } else {
+    say('= ' + ratText(val) + ' \u00b7 not 24 yet', 'bad');
+    nudge();
+  }
+}
+
+/* ---------------- solutions ---------------- */
+var solutionCache = null; // {trees, count} for the current puzzle
+function ensureSolutionCache(){
+  if(!solutionCache){
+    var trees = uniqueSolutions(puzzle);
+    solutionCache = { trees: trees, count: trees.length };
+  }
+  return solutionCache;
+}
+function onSolutionClick(){
+  if(locked || suppressClick) return;
+  ensureSolutionCache();
+  if(!solutionCache.count){ sayTemp('no solution for this hand', null, 1400); return; }
+  var built = tokensToEquationState(treeToTokens(solutionCache.trees[0]));
+  eqItems = built.items;
+  groups = built.groups;
+  render();
+  var n = solutionCache.count;
+  say(n + ' non-identical solution' + (n===1?'':'s') + ' \u2014 one shown above'
+      + (canShowOthers ? ' \u00b7 ' : ''), null, true);
+  fitLayout();
+}
+
+// Draws any token list as miniature cards / operators / parens, reusing
+// the visual vocabulary of the main equation bar. Used by the solutions
+// panel and by the end-of-match round log.
+function appendMiniTokens(parent, toks, cards){
+  toks.forEach(function(t){
+    var el;
+    if(t.type === 'card'){
+      var c = cards[t.cardIdx];
+      if(!c) return;
+      var suit = SUITS[c.s] || SUITS[0];
+      el = document.createElement('span');
+      el.className = 'mini-card ' + suit.c;
+      el.innerHTML = '<span class="r">' + rankLabel(c.v) + '</span>' +
+                     '<span class="s">' + suit.g + '</span>';
+    } else if(t.type === 'op'){
+      el = document.createElement('span');
+      el.className = 'mini-op';
+      el.textContent = t.op;
+    } else {
+      el = document.createElement('span');
+      el.className = 'mini-paren';
+      el.textContent = (t.type === '(') ? '(' : ')';
+    }
+    parent.appendChild(el);
+  });
+  return parent;
+}
+function miniRow(toks, cards, label){
+  var row = document.createElement('div');
+  row.className = 'sol-row';
+  if(label){
+    var n = document.createElement('span');
+    n.className = 'sol-n';
+    n.textContent = label;
+    row.appendChild(n);
+  }
+  appendMiniTokens(row, toks, cards);
+  return row;
+}
+function renderMiniSolution(tree, index){
+  return miniRow(treeToTokens(tree), puzzle, '#' + (index + 1));
+}
+function openSolutionsPanel(){
+  ensureSolutionCache();
+  if(!solutionCache.count) return;
+  solBody.innerHTML = '';
+  solutionCache.trees.forEach(function(t, i){
+    solBody.appendChild(renderMiniSolution(t, i));
+  });
+  solCount.textContent = solutionCache.count +
+    ' distinct way' + (solutionCache.count===1?'':'s') + ' to make 24';
+  solutionsEl.classList.remove('hidden','collapsed');
+  solHead.setAttribute('aria-expanded','true');
+  fitLayout();
+}
+function hideSolutionsPanel(){
+  solutionsEl.classList.add('hidden');
+  solutionsEl.classList.remove('collapsed');
+  solBody.innerHTML = '';
+}
+function toggleSolutionsPanel(){
+  var collapsed = solutionsEl.classList.toggle('collapsed');
+  solHead.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  fitLayout();
+}
+solHead.addEventListener('click', toggleSolutionsPanel);
+solHead.addEventListener('keydown', function(e){
+  if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleSolutionsPanel(); }
+});
+
+/* ---------------- backspace ----------------
+   Removes the right-most element of the equation. A closing parenthesis
+   counts as one element: it takes its matching opener with it and leaves
+   the term inside completely intact. */
+function backspaceEquation(){
+  if(locked || !eqItems.length) return;
+  var lastIdx = eqItems.length - 1;
+  var ending = groups.filter(function(g){ return g.end === lastIdx; })
+                     .sort(function(a,b){ return a.start - b.start; });
+  if(ending.length){
+    // outermost pair closing here is the visually last element
+    var gid = ending[0].id;
+    groups = groups.filter(function(g){ return g.id !== gid; });
+    render();
+    return;
+  }
+  eqItems = eqItems.slice(0, lastIdx);
+  groups = groups.filter(function(g){ return g.end < eqItems.length; });
+  clearSay();
+  render();
+}
+
+opKeys.forEach(function(b){
+  b.addEventListener('click', function(){ onOpClick(b.dataset.op); });
+});
+clearBtn.addEventListener('click', clearEquation);
+solutionBtn.addEventListener('click', onSolutionClick);
+submitBtn.addEventListener('click', onSubmit);
+nextBtn.addEventListener('click', function(){
+  if(suppressClick) return;
+  advancePuzzle();
+});
+skipBtn.addEventListener('click', function(){
+  if(locked || suppressClick || mode === 'mp') return;
+  replaceHand(null, { keepSay:true });
+});
+
+/* ---------------- keyboard ----------------
+   Mirrors the on-screen controls exactly; operator keys are ignored
+   whenever the equation cannot currently take an operator. */
+var KEY_OPS = {
+  '+':'+',
+  '-':'\u2212', '\u2212':'\u2212',
+  '/':'\u00f7', '\u00f7':'\u00f7',
+  'x':'\u00d7', 'X':'\u00d7', '*':'\u00d7', '\u00d7':'\u00d7'
+};
+document.addEventListener('keydown', function(e){
+  if(e.metaKey || e.ctrlKey || e.altKey) return;
+  var t = e.target;
+  if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  if(!overlay.classList.contains('hidden')) return;   // a menu is open
+  if(locked) return;
+
+  if(e.key === 'Backspace'){
+    e.preventDefault();
+    backspaceEquation();
+    return;
+  }
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    if(!submitBtn.disabled) onSubmit();
+    return;
+  }
+  var op = KEY_OPS[e.key];
+  if(op){
+    e.preventDefault();
+    // do nothing unless the operator keys are live, exactly as clicking would
+    if(opKeys[0] && opKeys[0].disabled) return;
+    onOpClick(op);
+  }
+});
+
+window.addEventListener('resize', function(){ fitLayout(); });
+if(window.visualViewport) window.visualViewport.addEventListener('resize', function(){ fitLayout(); });
+window.addEventListener('orientationchange', function(){ setTimeout(fitLayout, 120); });
+
+/* =====================================================================
+   4. DRAG SELECTION -> PARENTHESES
+   ===================================================================== */
+var dragActive = false, dragging = false, startX = 0, startY = 0, suppressClick = false;
+
+playEl.addEventListener('pointerdown', function(e){
+  if(locked) return;
+  if(!overlay.classList.contains('hidden')) return;
+  if(e.button !== undefined && e.button !== 0) return;
+  dragActive = true; dragging = false;
+  startX = e.clientX; startY = e.clientY;
+});
+window.addEventListener('pointermove', function(e){
+  if(!dragActive) return;
+  var dx = e.clientX - startX, dy = e.clientY - startY;
+  if(!dragging && Math.sqrt(dx*dx + dy*dy) < 7) return;
+  dragging = true;
+  selbox.style.display = 'block';
+  selbox.style.left = Math.min(startX, e.clientX) + 'px';
+  selbox.style.top = Math.min(startY, e.clientY) + 'px';
+  selbox.style.width = Math.abs(dx) + 'px';
+  selbox.style.height = Math.abs(dy) + 'px';
+});
+window.addEventListener('pointerup', function(e){
+  if(!dragActive) return;
+  dragActive = false;
+  selbox.style.display = 'none';
+  if(!dragging) return;
+  dragging = false;
+  suppressClick = true;
+  setTimeout(function(){ suppressClick = false; }, 0);
+  applySelection({
+    left: Math.min(startX, e.clientX),
+    right: Math.max(startX, e.clientX),
+    top: Math.min(startY, e.clientY),
+    bottom: Math.max(startY, e.clientY)
+  });
+});
+window.addEventListener('pointercancel', function(){
+  dragActive = false; dragging = false; selbox.style.display = 'none';
+});
+document.addEventListener('click', function(e){
+  if(suppressClick){ e.stopPropagation(); e.preventDefault(); }
+}, true);
+
+function overlaps(el, r){
+  var b = el.getBoundingClientRect();
+  return !(b.right < r.left || b.left > r.right || b.bottom < r.top || b.top > r.bottom);
+}
+function applySelection(r){
+  if(locked) return;
+  var hits = [];
+  eqItems.forEach(function(tok, i){
+    if(tok.type !== 'card') return;
+    if(overlaps(cardEls[tok.id], r)) hits.push(i);
+  });
+  if(hits.length === 0) return;
+
+  // A term spanning all 4 cards can never be parenthesized — selecting
+  // everything just wipes every existing group instead.
+  if(hits.length === 4){
+    if(groups.length){ groups = []; render(); }
+    return;
+  }
+
+  var start = hits[0], end = hits[hits.length - 1];
+
+  // A nested (double-parenthesized) term is an inner group strictly
+  // inside an outer one. Touching any part of it clears the outer;
+  // re-selecting exactly its 3 cards also collapses the inner, leaving
+  // one unnested 3-card term.
+  var nestedOuter = null, nestedInner = null;
+  groups.forEach(function(g){
+    groups.forEach(function(h){
+      if(g !== h && h.start >= g.start && h.end <= g.end && (h.start > g.start || h.end < g.end)){
+        nestedOuter = g; nestedInner = h;
+      }
+    });
+  });
+  if(nestedOuter && !(start > nestedOuter.end || end < nestedOuter.start)){
+    groups = groups.filter(function(g){ return g.id !== nestedOuter.id; });
+    if(start === nestedOuter.start && end === nestedOuter.end){
+      groups = groups.filter(function(g){ return g.id !== nestedInner.id; });
+      groups.push({ id: groupSeq++, start: start, end: end });
+      render();
+      return;
+    }
+    if(hits.length === 1){ render(); return; }
+  }
+
+  if(hits.length === 1){
+    var g = groupContaining(hits[0]);
+    if(g){ groups = groups.filter(function(x){ return x.id !== g.id; }); render(); }
+    return;
+  }
+
+  // 3 cards selected, 2 of which already form a group: nest a new outer
+  // term around them rather than replacing that inner grouping.
+  if(hits.length === 3){
+    var inside = groups.filter(function(x){ return x.start >= start && x.end <= end; });
+    if(inside.length === 1 && (inside[0].end - inside[0].start) < (end - start)){
+      groups.push({ id: groupSeq++, start: start, end: end });
+      render();
+      return;
+    }
+  }
+
+  // a new term replaces any term it touches
+  groups = groups.filter(function(x){ return x.end < start || x.start > end; });
+  // wrapping the entire bar is only pointless once there are 3+ cards down —
+  // with just two cards, this is the normal first step toward (a+b)*c*d
+  var wrapsAll = (start === 0 && end === eqItems.length - 1 && cardCount() > 2);
+  if(!wrapsAll) groups.push({ id: groupSeq++, start: start, end: end });
+  clearSay();
+  render();
+  if(wrapsAll) sayTemp('the whole equation is already one term', 'note', 1300);
+}
+
+/* =====================================================================
+   5. FLOW
+   ===================================================================== */
+/* ---------------- dealing ----------------
+   Cards slide in one at a time from beyond the top edge of the window,
+   as though flicked off a deck. The previous hand simply fades away. */
+var DEAL_STAGGER = 105;
+var DEAL_FLIGHT = 360;
+function dealDuration(){ return DEAL_STAGGER * 3 + DEAL_FLIGHT + 40; }
+var dealTimers = [];
+function clearDealTimers(){
+  dealTimers.forEach(function(t){ clearTimeout(t); });
+  dealTimers = [];
+}
+function animateDeal(){
+  clearDealTimers();
+  cardEls.forEach(function(el, i){
+    var r = el.getBoundingClientRect();
+    if(!r.width){ el.style.opacity = ''; return; }
+    // start above the top edge, horizontally centred on the window
+    var dx = (window.innerWidth / 2) - (r.left + r.width / 2);
+    var dy = -(r.top + r.height + 60);
+    var tilt = (i - 1.5) * 3.5;
+    el.style.transition = 'none';
+    el.style.transformOrigin = '50% 50%';
+    el.style.transform = 'translate(' + dx + 'px,' + dy + 'px) rotate(' + tilt + 'deg) scale(.92)';
+    el.style.opacity = '0';
+    void el.offsetWidth;
+    dealTimers.push(setTimeout(function(){
+      el.style.willChange = 'transform';
+      el.style.transition = 'transform ' + DEAL_FLIGHT + 'ms cubic-bezier(.16,.79,.28,1), opacity 150ms linear';
+      el.style.transform = '';
+      el.style.opacity = '1';
+      playDealSound();
+      dealTimers.push(setTimeout(function(){
+        el.style.transition = '';
+        el.style.transformOrigin = '';
+        el.style.opacity = '';
+        el.style.willChange = '';
+      }, DEAL_FLIGHT + 30));
+    }, i * DEAL_STAGGER));
+  });
+}
+function fadeOutHand(done){
+  var els = cardEls.slice();
+  if(!els.length){ done(); return; }
+  els.forEach(function(el){
+    el.style.transition = 'opacity 130ms linear';
+    el.style.opacity = '0';
+    el.style.pointerEvents = 'none';
+  });
+  setTimeout(done, 140);
+}
+
+function dealNew(cardsData, opts){
+  opts = opts || {};
+  clearDealTimers();
+  puzzle = cardsData || generatePuzzle();
+  eqItems = []; groups = [];
+  locked = !!opts.locked;
+  solutionCache = null;
+  puzzleSolved = false;
+  canShowOthers = false;
+  nextBtn.classList.add('hidden');
+  hideSolutionsPanel();
+  if(!opts.keepSay) clearSay();
+  buildHand();
+  render(false);
+  fitLayout();
+  if(opts.deal !== false) animateDeal();
+  else cardEls.forEach(function(el){ el.style.opacity = '0'; });
+}
+// Fades the old hand away, then deals the replacement.
+function replaceHand(cardsData, opts){
+  fadeOutHand(function(){ dealNew(cardsData, opts); });
+}
+// Next: the only way forward once a puzzle has been solved (solo only).
+function advancePuzzle(){
+  if(mode === 'mp') return;   // multiplayer advances on its own
+  replaceHand();
+}
+// Phase 1: the active menu panel fades out, THEN the overlay's solid
+// background fades to transparent, leaving a fully solid in-game backdrop
+// with nothing else on screen yet. Content is given its own fade so it
+// never lingers past (or disappears abruptly ahead of) the background.
+async function fadeOutMenu(){
+  var activePanel = null;
+  Object.keys(panels).forEach(function(k){
+    if(!panels[k].classList.contains('hidden')) activePanel = panels[k];
+  });
+  if(activePanel){
+    activePanel.classList.add('panel-fade-out');
+    await wait(320);
+  }
+  overlay.classList.add('fading');
+  await wait(460);
+  overlay.classList.add('hidden');
+  overlay.classList.remove('fading');
+  if(activePanel) activePanel.classList.remove('panel-fade-out');
+}
+// Phase 2: HUD emerges from the top, and the hand's grey slots fade in.
+// The cards inside them stay invisible (dealNew already hid them) until
+// they're actually dealt.
+function revealHud(){
+  playEl.classList.remove('pre-hud');
+  var hud = [playEl.querySelector('header'), playEl.querySelector('.rule'), timerTrack];
+  hud.forEach(function(el){ if(el){ el.classList.remove('enter-top'); void el.offsetWidth; el.classList.add('enter-top'); } });
+  handEl.classList.remove('enter-fade'); void handEl.offsetWidth; handEl.classList.add('enter-fade');
+}
+// Phase 3: buttons, the standings panel, and remaining text appear.
+function revealRest(){
+  playEl.classList.remove('pre-phase3');
+  controlsEl.classList.remove('enter-bottom'); void controlsEl.offsetWidth; controlsEl.classList.add('enter-bottom');
+  [eqwrap, boardEl].forEach(function(el){
+    el.classList.remove('enter-fade'); void el.offsetWidth; el.classList.add('enter-fade');
+  });
+  fitLayout();
+}
+async function enterPlay(){
+  await fadeOutMenu();
+  revealHud();
+  await wait(280);
+  revealRest();
+}
+function leavePlay(){
+  locked = true;
+  clearTimeout(barTimeout);
+  clearDealTimers();
+  curtain.classList.add('hidden');
+  timerTrack.classList.add('hidden');
+  boardEl.classList.remove('show');
+  nextBtn.classList.add('hidden');
+  hideVoteUI();
+  hideSolutionsPanel();
+  clearSay();
+  syncControls();
+  playEl.classList.add('pre-hud', 'pre-phase3');
+  // A finished enter-* animation holds its end state (opacity:1) via
+  // fill-mode:both, which would otherwise override the opacity:0 rule
+  // above — strip them so the next entrance starts from a clean slate.
+  [playEl.querySelector('header'), playEl.querySelector('.rule'), timerTrack,
+   handEl, controlsEl, eqwrap, readoutEl, boardEl].forEach(function(el){
+    if(el) el.classList.remove('enter-top', 'enter-bottom', 'enter-fade');
+  });
+}
+
+var barTimeout = null;
+function startTimerBar(remainingMs, totalMs, onDone){
+  clearTimeout(barTimeout);
+  timerTrack.classList.remove('hidden');
+  var frac = Math.max(0, Math.min(1, remainingMs / totalMs));
+  timerFill.style.transition = 'none';
+  timerFill.style.transform = 'scaleX(' + frac + ')';
+  void timerFill.offsetWidth;
+  timerFill.style.transition = 'transform ' + Math.max(0, remainingMs) + 'ms linear';
+  timerFill.style.transform = 'scaleX(0)';
+  barTimeout = setTimeout(onDone, Math.max(0, remainingMs));
+}
+
+function bumpSolved(){
+  solved++;
+  solvedVal.textContent = solved;
+  var pop = document.createElement('span');
+  pop.className = 'score-pop';
+  pop.textContent = '+1';
+  solvedStat.appendChild(pop);
+  setTimeout(function(){ pop.remove(); }, 900);
+}
+function onSolved(){
+  bumpSolved();
+  if(mode === 'solo'){
+    if(solved > best){ best = solved; bestVal.textContent = best; saveBest(); }
+  } else if(mode === 'mp'){
+    updateMe({ score: solved });
+  }
+  // progression is now driven by the Next button, not a timer
+}
+
+/* =====================================================================
+   6. SOLO
+   ===================================================================== */
+function loadBest(){
+  try{ var v = localStorage.getItem('twentyfour-best'); if(v) best = parseInt(v,10)||0; }catch(e){}
+  bestVal.textContent = best;
+}
+function saveBest(){
+  try{ localStorage.setItem('twentyfour-best', String(best)); }catch(e){}
+}
+async function startSolo(){
+  leaveLobbyState();
+  mode = 'solo';
+  solved = 0; solvedVal.textContent = '0';
+  bestStat.classList.remove('hidden');
+  timeStat.classList.add('hidden');
+  timerTrack.classList.add('hidden');
+  boardEl.classList.remove('show');
+  votebar.classList.add('hidden');
+  $('headerSub').textContent = 'use all four cards, once each';
+  dealNew(null, { deal:false, locked:true });
+  syncControls();
+  await enterPlay();
+  // deal only once the table is actually on screen
+  dealNew(null, { locked:true });
+  await wait(dealDuration());
+  locked = false;
+  syncControls();
+}
+function endSolo(){
+  leavePlay();
+  mode = null;
+  $('overKicker').textContent = 'Session ended';
+  $('overTitle').className = '';
+  $('overTitle').textContent = solved === 0 ? 'Next time' : (solved === 1 ? 'One down' : solved + ' solved');
+  $('overStats').innerHTML =
+    '<div><span class="b">' + solved + '</span><span class="s">solved</span></div>' +
+    '<div><span class="b">' + best + '</span><span class="s">best</span></div>';
+  $('overRoster').classList.add('hidden');
+  logWrap.classList.add('hidden');
+  $('againBtn').classList.remove('hidden');
+  $('againBtn').textContent = 'Play again';
+  $('overWait').classList.add('hidden');
+  $('overLeave').classList.add('hidden');
+  $('menuBtn').classList.remove('hidden');
+  showPanel('over');
+}
+
+/* =====================================================================
+   7. MULTIPLAYER — a synchronised race.
+
+   Everyone is dealt the same hand at the same wall-clock instant. The
+   first correct answer takes the round; the host is the single arbiter
+   that ranks the claims by elapsed time, so ties resolve identically for
+   every client. Reaction time is measured from the shared round start,
+   not from when a client happened to render.
+   ===================================================================== */
+var MP_POOL = 60;              // hands generated up front for the match
+var MP_DEFAULT_TARGET = 5;     // first to 5 ...
+var MP_WIN_BY = 2;             // ... and clear by 2
+var MP_CURTAIN_MS = 3300;      // fixed, full-length ready/set/go — never truncated
+var MP_LEAD_IN = 7500;         // generously covers poll latency + fade + curtain + reveal + deal for every client
+var MP_ROUND_GAP = 2300;       // result banner + fade + deal between hands
+var MP_VOTE_AFTER = 30000;     // a hand may be voted on after 30s
+var MP_VOTE_REPEAT = 120000;   // a failed vote reopens every 2 minutes
+var MP_HOST_TICK = 300;        // host arbitration cadence
+var MP_META_TICK = 300;        // client round-sync cadence
+var MP_PLAYERS_TICK = 800;     // scoreboard / vote-list cadence
+var MP_RESOLVE_GRACE = 280;    // catch near-simultaneous claims
+var MP_PRESENCE_MS = 20000;    // a player unseen this long is treated as gone
+var MP_HEARTBEAT_MS = 5000;    // how often we prove we're still here
+
+var playerId = 'p_' + Math.random().toString(36).slice(2,10);
+var lobbyCode = null, playerName = null, isHost = false;
+var lobbyPollTimer = null, lobbyPollBusy = false;
+var metaTimer = null, metaBusy = false;
+var playersTimer = null, playersBusy = false;
+var hostTimer = null, hostBusy = false, pendingResolveAt = 0;
+var roundUnlockTimer = null;
+var latestMeta = null, latestMetaAt = 0;   // shared by the client poll and the host loop
+var lastResolvedRound = -1;                // guards against resolving a round twice
+var heartbeatTimer = null;
+var lastMatchId = 0;
+var mp = {
+  active:false, matchId:0, target:MP_DEFAULT_TARGET, puzzles:[],
+  round:0, roundStartAt:0, claimed:false, over:false,
+  voteSession:0, voteOpenAt:0, voted:false, history:[]
+};
+
+function fbReady(){ return !!window.__fbReady && !!window.fb24; }
+function requireFb(){
+  if(!fbReady()){
+    var d = window.__fbInitError ? (': ' + window.__fbInitError.message) : '';
+    throw new Error('Multiplayer is unavailable right now' + d);
+  }
+}
+function genCode(){
+  var chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789', c='';
+  for(var i=0;i<5;i++) c += chars[Math.floor(Math.random()*chars.length)];
+  return c;
+}
+async function getMeta(){
+  if(!lobbyCode || !fbReady()) return null;
+  try{ return await window.fb24.getMeta(lobbyCode); }catch(e){ return null; }
+}
+async function setMeta(d){
+  if(!lobbyCode || !fbReady()) return;
+  try{ await window.fb24.setMeta(lobbyCode, d); }catch(e){}
+}
+async function updateMe(d){
+  if(!lobbyCode || !fbReady()) return;
+  try{
+    await window.fb24.setPlayer(lobbyCode, playerId,
+      Object.assign({ name:playerName, updatedAt:Date.now() }, d));
+  }catch(e){}
+}
+async function setPlayerDoc(id, d){
+  if(!lobbyCode || !fbReady()) return;
+  try{ await window.fb24.setPlayer(lobbyCode, id, d); }catch(e){}
+}
+async function getPlayers(){
+  if(!lobbyCode || !fbReady()) return [];
+  try{
+    var ps = await window.fb24.getPlayers(lobbyCode);
+    return ps.sort(function(a,b){ return (b.score||0) - (a.score||0); });
+  }catch(e){ return []; }
+}
+async function settledPlayers(){
+  var a = await getPlayers();
+  await wait(450);
+  var b = await getPlayers();
+  return b.length >= a.length ? b : a;
+}
+function shareLink(code){
+  if(location.protocol.indexOf('http') !== 0) return null;
+  var u = new URL(location.href);
+  u.searchParams.set('room', code);
+  return u.toString();
+}
+function majorityNeeded(n){
+  // a 2-player lobby needs both; larger lobbies need a strict majority
+  if(n <= 2) return n;
+  return Math.floor(n/2) + 1;
+}
+// Players who have written recently. Someone who closed their tab must not
+// hold a vote hostage, but we never let this empty the lobby entirely.
+function activePlayers(list){
+  var now = Date.now();
+  var live = list.filter(function(p){ return now - (p.updatedAt||0) < MP_PRESENCE_MS; });
+  return live.length ? live : list;
+}
+function isStale(p){ return Date.now() - (p.updatedAt||0) >= MP_PRESENCE_MS; }
+// True when the host is gone: either they explicitly signalled leaving,
+// or their player doc has vanished/gone stale (closed tab, lost connection).
+function hostIsGone(meta, players){
+  if(!meta || !meta.hostId) return false;
+  if(meta.status === 'abandoned') return true;
+  var host = players.filter(function(p){ return p.id === meta.hostId; })[0];
+  return !host || isStale(host);
+}
+function startHeartbeat(){
+  stopHeartbeat();
+  heartbeatTimer = setInterval(function(){
+    if(lobbyCode) updateMe({});
+  }, MP_HEARTBEAT_MS);
+}
+function stopHeartbeat(){
+  if(heartbeatTimer) clearInterval(heartbeatTimer);
+  heartbeatTimer = null;
+}
+
+/* ---------------- rosters & scoreboard ---------------- */
+function renderRoster(container, players){
+  container.innerHTML = '';
+  if(!players.length){
+    container.innerHTML = '<div class="roster-row"><span>waiting for players…</span></div>';
+    return;
+  }
+  players.forEach(function(p){
+    var row = document.createElement('div');
+    row.className = 'roster-row' + (p.id === playerId ? ' me' : '');
+    row.innerHTML = '<span>' + esc(p.name||'player') + '</span><span class="sc">' + (p.score||0) + '</span>';
+    container.appendChild(row);
+  });
+}
+function renderBoard(players){
+  boardRows.innerHTML = '';
+  players.slice(0,8).forEach(function(p,i){
+    var row = document.createElement('div');
+    row.className = 'brow'
+      + (p.id===playerId ? ' me' : '')
+      + (i===0 && (p.score||0)>0 ? ' lead' : '')
+      + (isStale(p) ? ' done' : '');
+    row.innerHTML = '<span class="r">' + (i+1) + '</span>'
+      + '<span class="n">' + esc(p.name||'player') + '</span>'
+      + '<span class="p">' + (p.score||0) + '</span>';
+    boardRows.appendChild(row);
+  });
+}
+
+/* ---------------- vote to skip ---------------- */
+function hideVoteUI(){
+  votebar.classList.add('hidden');
+  voteBtn.classList.add('hidden');
+  voteBtn.classList.remove('cast');
+  voteBtn.textContent = 'Vote to skip this hand';
+  voteList.innerHTML = '';
+}
+function renderVoteUI(players){
+  if(mode !== 'mp' || mp.over || !mp.voteSession || Date.now() < mp.voteOpenAt){
+    hideVoteUI();
+    return;
+  }
+  var here = activePlayers(players);
+  var voters = here.filter(function(p){ return (p.voteSession||0) === mp.voteSession; });
+  var need = majorityNeeded(here.length);
+  votebar.classList.remove('hidden');
+  voteBtn.classList.remove('hidden');
+
+  voteList.innerHTML = '';
+  var head = document.createElement('div');
+  head.className = 'vhead';
+  head.textContent = 'Skip this hand? ' + voters.length + ' of ' + need + ' needed';
+  voteList.appendChild(head);
+  voters.forEach(function(p){
+    var n = document.createElement('div');
+    n.className = 'vname';
+    n.textContent = (p.id === playerId ? 'you' : (p.name || 'player'));
+    voteList.appendChild(n);
+  });
+
+  var iVoted = voters.some(function(p){ return p.id === playerId; });
+  voteBtn.classList.toggle('cast', iVoted);
+  voteBtn.disabled = iVoted;
+  voteBtn.textContent = iVoted ? 'Vote cast' : 'Vote to skip this hand';
+  fitLayout();
+}
+voteBtn.addEventListener('click', function(){
+  if(mode !== 'mp' || mp.over || !mp.voteSession) return;
+  mp.voted = true;
+  voteBtn.disabled = true;
+  voteBtn.classList.add('cast');
+  voteBtn.textContent = 'Vote cast';
+  updateMe({ voteSession: mp.voteSession });
+});
+
+/* ---------------- lobby polling (pre-match / post-match) ---------------- */
+function startLobbyPolling(){
+  stopLobbyPolling();
+  var tick = async function(){
+    if(lobbyPollBusy) return;
+    lobbyPollBusy = true;
+    try{
+      var players = await getPlayers();
+      renderRoster($('lobbyRoster'), players);
+      var meta = await getMeta();
+      if(!meta) return;
+      if(!isHost && hostIsGone(meta, players)){
+        stopLobbyPolling();
+        leaveLobbyState();
+        showPanel('hostLeft');
+        return;
+      }
+      if(!isHost && meta.target) $('targetInput').value = meta.target;
+      if(meta.status === 'active' && meta.matchId && meta.matchId !== lastMatchId){
+        lastMatchId = meta.matchId;
+        await enterMatch(meta);
+      }
+    } finally { lobbyPollBusy = false; }
+  };
+  tick();
+  lobbyPollTimer = setInterval(tick, 900);
+}
+function stopLobbyPolling(){
+  if(lobbyPollTimer) clearInterval(lobbyPollTimer);
+  lobbyPollTimer = null;
+}
+
+/* ---------------- in-match polling ---------------- */
+function startMatchPolling(){
+  stopMatchPolling();
+  metaTimer = setInterval(async function(){
+    if(metaBusy) return;
+    metaBusy = true;
+    try{
+      var meta = await getMeta();
+      if(!meta) return;
+      latestMeta = meta; latestMetaAt = Date.now();
+      if(meta.status === 'finished'){ await onMatchFinished(meta); return; }
+      if(meta.status !== 'active') return;
+      mp.target = meta.target || mp.target;
+      mp.voteSession = meta.voteSession || 0;
+      mp.voteOpenAt = meta.voteOpenAt || 0;
+      if(meta.round && meta.round !== mp.round) onNewRound(meta);
+    } finally { metaBusy = false; }
+  }, MP_META_TICK);
+
+  playersTimer = setInterval(async function(){
+    if(playersBusy) return;
+    playersBusy = true;
+    try{
+      var players = await getPlayers();
+      renderBoard(players);
+      renderVoteUI(players);
+      if(!isHost && !mp.over && hostIsGone(latestMeta, players)){
+        mp.over = true; mp.active = false;
+        stopMatchPolling(); stopHostLoop(); stopHeartbeat();
+        clearTimeout(roundUnlockTimer);
+        leavePlay();
+        leaveLobbyState();
+        showPanel('hostLeft');
+      }
+    } finally { playersBusy = false; }
+  }, MP_PLAYERS_TICK);
+}
+function stopMatchPolling(){
+  if(metaTimer) clearInterval(metaTimer);
+  if(playersTimer) clearInterval(playersTimer);
+  metaTimer = playersTimer = null;
+}
+
+/* ---------------- host arbitration ----------------
+   Only the host writes results. It waits a short grace after seeing the
+   first claim so a near-simultaneous answer still gets compared fairly,
+   then ranks strictly by the elapsed time each client measured against
+   the shared round start. */
+function startHostLoop(){
+  stopHostLoop();
+  if(!isHost) return;
+  pendingResolveAt = 0;
+  hostTimer = setInterval(hostTick, MP_HOST_TICK);
+}
+function stopHostLoop(){
+  if(hostTimer) clearInterval(hostTimer);
+  hostTimer = null;
+  hostBusy = false;
+  pendingResolveAt = 0;
+}
+async function hostTick(){
+  if(!isHost || hostBusy) return;
+  hostBusy = true;
+  try{
+    // reuse the round-sync poll's read when it's fresh enough
+    var meta = (latestMeta && Date.now() - latestMetaAt < 600) ? latestMeta : await getMeta();
+    if(!meta || meta.status !== 'active') return;
+    var round = meta.round;
+    if(round <= lastResolvedRound) return;   // already settled; awaiting the write to land
+    var players = await getPlayers();
+    if(!players.length) return;
+
+    // --- 1. did anybody solve it? ---
+    var solvers = players.filter(function(p){
+      return (p.solvedRound || -1) === round && typeof p.solvedMs === 'number';
+    });
+    if(solvers.length){
+      if(!pendingResolveAt){ pendingResolveAt = Date.now() + MP_RESOLVE_GRACE; return; }
+      if(Date.now() < pendingResolveAt) return;
+      pendingResolveAt = 0;
+      solvers.sort(function(a,b){ return a.solvedMs - b.solvedMs; });
+      await resolveRound(meta, players, round, solvers[0]);
+      return;
+    }
+    pendingResolveAt = 0;
+
+    // --- 2. vote-to-skip lifecycle ---
+    var elapsed = Date.now() - (meta.roundStartAt || Date.now());
+    var vs = meta.voteSession || 0;
+    if(vs === 0){
+      if(elapsed >= MP_VOTE_AFTER) await setMeta({ voteSession:1, voteOpenAt: Date.now() });
+      return;
+    }
+    var here = activePlayers(players);
+    var votes = here.filter(function(p){ return (p.voteSession||0) === vs; }).length;
+    if(votes >= majorityNeeded(here.length)){
+      await resolveRound(meta, players, round, null);
+      return;
+    }
+    if(Date.now() - (meta.voteOpenAt || 0) >= MP_VOTE_REPEAT){
+      // the vote lapsed — clear it and open a fresh one
+      for(var i=0;i<players.length;i++){
+        if((players[i].voteSession||0) === vs){
+          await setPlayerDoc(players[i].id, {
+            voteSession:-1, updatedAt: players[i].updatedAt || Date.now()
+          });
+        }
+      }
+      await setMeta({ voteSession: vs+1, voteOpenAt: Date.now() });
+    }
+  } finally { hostBusy = false; }
+}
+// winner === null means the hand was skipped by vote
+async function resolveRound(meta, players, round, winner){
+  lastResolvedRound = round;
+  latestMeta = null;               // force a fresh read after these writes
+  var scores = {};
+  players.forEach(function(p){
+    scores[p.id] = (p.score||0) + (winner && p.id === winner.id ? 1 : 0);
+  });
+  for(var i=0;i<players.length;i++){
+    var p = players[i];
+    await setPlayerDoc(p.id, {
+      name: p.name, score: scores[p.id],
+      solvedRound: -1, solvedMs: null, solvedEq: '',
+      voteSession: -1,
+      // keep their own last-seen stamp — the host writing to a player is
+      // not evidence that the player is still there
+      updatedAt: p.updatedAt || Date.now()
+    });
+  }
+  var hist = (meta.history || []).slice();
+  hist.push({
+    r: round,
+    p: meta.puzzles[round-1] || '',
+    wid: winner ? winner.id : '',
+    wn: winner ? (winner.name || 'player') : '',
+    ms: winner ? winner.solvedMs : 0,
+    eq: winner ? (winner.solvedEq || '') : '',
+    skipped: !winner
+  });
+  var result = winner
+    ? { r:round, wid:winner.id, wn:winner.name||'player', ms:winner.solvedMs, skipped:false }
+    : { r:round, wid:'', wn:'', ms:0, skipped:true };
+
+  // --- win check: reach the target and lead by two ---
+  var ranked = players.map(function(p){ return { id:p.id, name:p.name, s:scores[p.id] }; })
+                      .sort(function(a,b){ return b.s - a.s; });
+  var top = ranked[0], second = ranked[1] ? ranked[1].s : 0;
+  if(top && top.s >= (meta.target||MP_DEFAULT_TARGET) && (top.s - second) >= MP_WIN_BY){
+    await setMeta({
+      status:'finished', winnerId: top.id, winnerName: top.name || 'player',
+      history: hist, lastResult: result
+    });
+    stopHostLoop();
+    return;
+  }
+  await setMeta({
+    round: round + 1,
+    roundStartAt: Date.now() + MP_ROUND_GAP,
+    history: hist,
+    voteSession: 0, voteOpenAt: 0,
+    lastResult: result
+  });
+}
+
+/* ---------------- client round handling ---------------- */
+function onNewRound(meta){
+  mp.round = meta.round;
+  mp.roundStartAt = meta.roundStartAt || Date.now();
+  mp.claimed = false;
+  mp.voted = false;
+  mp.history = meta.history || [];
+  locked = true;
+  hideVoteUI();
+  clearTimeout(roundUnlockTimer);
+
+  // announce how the previous hand ended, if this isn't the first
+  var res = meta.lastResult;
+  if(res && res.r === meta.round - 1){
+    if(res.skipped){
+      say('hand skipped by vote', 'note');
+    } else if(res.wid === playerId){
+      say('you took it in ' + (res.ms/1000).toFixed(2) + 's', 'good');
+    } else {
+      say((res.wn || 'someone') + ' took it in ' + (res.ms/1000).toFixed(2) + 's', 'note');
+    }
+  }
+
+  var enc = meta.puzzles && meta.puzzles[meta.round - 1];
+  replaceHand(enc ? decodePuzzle(enc) : undefined, { locked:true, keepSay:true });
+  syncControls();
+
+  roundUnlockTimer = setTimeout(function(){
+    if(mp.over) return;
+    locked = false;
+    clearSay();
+    syncControls();
+  }, Math.max(0, mp.roundStartAt - Date.now()));
+}
+
+/* ---------------- match lifecycle ---------------- */
+function applyMpChrome(){
+  bestStat.classList.add('hidden');
+  timeStat.classList.remove('hidden');
+  timeStat.querySelector('.lbl').textContent = 'to win';
+  timeVal.textContent = String(mp.target);
+  timerTrack.classList.add('hidden');
+  boardEl.classList.add('show');
+  boardClock.textContent = 'first to ' + mp.target;
+  $('headerSub').textContent = 'first correct answer takes the hand';
+  updateBoardLayout();
+}
+async function runCurtain(msUntil){
+  curtain.classList.remove('hidden','lifting');
+  var t0 = Date.now();
+  function beat(word){
+    curtainWord.textContent = word;
+    curtainWord.className = '';
+    void curtainWord.offsetWidth;
+    curtainWord.className = 'beat';
+  }
+  function left(){ return msUntil - (Date.now() - t0); }
+  if(msUntil < 2200){
+    beat('Go');
+    await wait(Math.max(0, left()));
+  } else {
+    beat('Ready');
+    await wait(Math.max(0, left() - 1650));
+    beat('Set');
+    await wait(Math.max(0, left() - 850));
+    beat('Go');
+    await wait(Math.max(0, left()));
+  }
+  curtain.classList.add('lifting');
+  await wait(300);
+  curtain.classList.add('hidden');
+  curtain.classList.remove('lifting');
+}
+async function enterMatch(meta){
+  mode = 'mp';
+  mp = {
+    active:true, matchId: meta.matchId, target: meta.target || MP_DEFAULT_TARGET,
+    puzzles: meta.puzzles || [],
+    round: meta.round || 1, roundStartAt: meta.roundStartAt || Date.now(),
+    claimed:false, over:false,
+    voteSession:0, voteOpenAt:0, voted:false, history: meta.history || []
+  };
+  solved = 0; solvedVal.textContent = '0';
+  applyMpChrome();
+  hideVoteUI();
+  hideSolutionsPanel();
+  await updateMe({ score:0, solvedRound:-1, solvedMs:null, solvedEq:'', voteSession:-1 });
+
+  var enc = mp.puzzles[mp.round - 1];
+  dealNew(enc ? decodePuzzle(enc) : undefined, { deal:false, locked:true });
+  syncControls();
+  stopLobbyPolling();
+
+  // Phase 1: menu fades away completely — solid blue backdrop, nothing
+  // else on screen yet (HUD/slots/controls/board are still pre-hud/
+  // pre-phase3 hidden at this point).
+  await fadeOutMenu();
+
+  // Phase 2: ready / set / go plays in full, for every player including
+  // the host, on that same blank backdrop. Fixed duration — never
+  // truncated by however much lead time happens to be left.
+  await runCurtain(MP_CURTAIN_MS);
+
+  // Phase 3: the same staged reveal as solo play — HUD + slots, then the
+  // hand is dealt, then buttons/standings/text.
+  revealHud();
+  await wait(280);
+  animateDeal();
+  revealRest();
+  await wait(dealDuration());
+
+  startMatchPolling();
+  startHeartbeat();
+  lastResolvedRound = -1;
+  latestMeta = null;
+  if(isHost) startHostLoop();
+
+  clearTimeout(roundUnlockTimer);
+  roundUnlockTimer = setTimeout(function(){
+    if(mp.over) return;
+    locked = false;
+    clearSay();
+    syncControls();
+  }, Math.max(0, mp.roundStartAt - Date.now()));
+}
+async function hostStartMatch(){
+  if(!isHost) return;
+  var btn = $('startMatch');
+  btn.disabled = true; btn.textContent = 'Shuffling…';
+  var target = parseInt($('targetInput').value, 10);
+  if(!target || target < 1) target = MP_DEFAULT_TARGET;
+  target = Math.min(30, target);
+
+  var puzzles = [];
+  for(var i=0;i<MP_POOL;i++) puzzles.push(encodePuzzle(generatePuzzle()));
+  var matchId = Date.now();
+  var roundStartAt = Date.now() + MP_LEAD_IN;
+  var players = await settledPlayers();
+  for(var k=0;k<players.length;k++){
+    await setPlayerDoc(players[k].id, {
+      name: players[k].name, score:0,
+      solvedRound:-1, solvedMs:null, solvedEq:'', voteSession:-1, updatedAt:Date.now()
+    });
+  }
+  lastMatchId = matchId;
+  await setMeta({
+    status:'active', matchId:matchId, target:target, puzzles:puzzles,
+    round:1, roundStartAt:roundStartAt,
+    voteSession:0, voteOpenAt:0,
+    history:[], lastResult:null, winnerId:null, winnerName:null
+  });
+  btn.disabled = false; btn.textContent = 'Start match';
+  await enterMatch({
+    matchId:matchId, target:target, puzzles:puzzles,
+    round:1, roundStartAt:roundStartAt, history:[]
+  });
+}
+async function onMatchFinished(meta){
+  if(mp.over) return;
+  mp.over = true;
+  mp.active = false;
+  locked = true;
+  clearTimeout(roundUnlockTimer);
+  stopMatchPolling();
+  stopHostLoop();
+  stopHeartbeat();
+  syncControls();
+  var players = await getPlayers();
+  showMpResults(meta, players);
+}
+
+/* ---------------- end screen ---------------- */
+function showMpResults(meta, players){
+  leavePlay();
+  mode = null;
+  var iWon = meta.winnerId === playerId;
+  var me = players.filter(function(p){ return p.id === playerId; })[0];
+  var myScore = me ? (me.score||0) : 0;
+  var topScore = players.length ? (players[0].score||0) : 0;
+
+  $('overKicker').textContent = iWon ? 'Match won' : 'Match over';
+  $('overTitle').className = 'verdict';
+  $('overTitle').textContent = iWon ? 'W' : 'L';
+  $('overStats').innerHTML =
+    '<div><span class="b">' + myScore + '</span><span class="s">your score</span></div>' +
+    '<div><span class="b">' + topScore + '</span><span class="s">winning score</span></div>';
+  $('overRoster').classList.remove('hidden');
+  renderRoster($('overRoster'), players);
+
+  renderMatchLog(meta.history || []);
+
+  $('menuBtn').classList.add('hidden');
+  $('overLeave').classList.remove('hidden');
+  if(isHost){
+    $('againBtn').classList.remove('hidden');
+    $('againBtn').textContent = 'New match';
+    $('overWait').classList.add('hidden');
+  } else {
+    $('againBtn').classList.add('hidden');
+    $('overWait').classList.remove('hidden');
+  }
+  showPanel('over');
+  startLobbyPolling();
+  startHeartbeat();
+}
+
+/* ---------------- round-by-round log ----------------
+   Every hand the match served, in order. Opening one swaps the row for a
+   card carrying the winner, their time, the equation they used, and every
+   other non-equivalent way that hand could have been solved. */
+function renderMatchLog(history){
+  matchLog.innerHTML = '';
+  matchLog.classList.add('hidden');
+  logToggle.setAttribute('aria-expanded','false');
+  if(!history.length){ logWrap.classList.add('hidden'); return; }
+  logWrap.classList.remove('hidden');
+  history.forEach(function(h){
+    matchLog.appendChild(buildLogItem(h));
+  });
+}
+function buildLogItem(h){
+  var cards = h.p ? decodePuzzle(h.p) : [];
+  var item = document.createElement('div');
+  item.className = 'log-item';
+
+  function collapsed(){
+    item.innerHTML = '';
+    var head = document.createElement('button');
+    head.className = 'log-head';
+    head.type = 'button';
+    var r = document.createElement('span');
+    r.className = 'log-r';
+    r.textContent = 'Hand ' + h.r;
+    head.appendChild(r);
+    appendMiniTokens(head, cards.map(function(_, i){ return { type:'card', cardIdx:i }; }), cards);
+    var m = document.createElement('span');
+    m.className = 'log-meta';
+    m.innerHTML = h.skipped
+      ? 'skipped by vote'
+      : '<b>' + esc(h.wn || 'player') + '</b> · ' + (h.ms/1000).toFixed(2) + 's';
+    head.appendChild(m);
+    head.addEventListener('click', expanded);
+    item.appendChild(head);
+  }
+
+  function expanded(){
+    item.innerHTML = '';
+    var d = document.createElement('div');
+    d.className = 'log-detail';
+
+    var top = document.createElement('div');
+    top.className = 'ld-top';
+    var title = document.createElement('div');
+    title.className = 'ld-title';
+    title.innerHTML = 'Hand ' + h.r + '<small>' + (h.skipped
+        ? 'nobody solved it — skipped by vote'
+        : 'won by ' + esc(h.wn || 'player') + ' in ' + (h.ms/1000).toFixed(2) + ' seconds') + '</small>';
+    var x = document.createElement('button');
+    x.className = 'ld-close';
+    x.type = 'button';
+    x.setAttribute('aria-label','Close this hand');
+    x.textContent = '\u2715';
+    x.addEventListener('click', collapsed);
+    top.appendChild(title); top.appendChild(x);
+    d.appendChild(top);
+
+    // the hand itself
+    var lbl0 = document.createElement('div');
+    lbl0.className = 'ld-label';
+    lbl0.textContent = 'the hand';
+    d.appendChild(lbl0);
+    d.appendChild(miniRow(cards.map(function(_, i){ return { type:'card', cardIdx:i }; }), cards));
+
+    // the winning equation
+    var winnerCanon = null;
+    if(!h.skipped && h.eq){
+      var wToks = parseEqString(h.eq);
+      var lbl1 = document.createElement('div');
+      lbl1.className = 'ld-label';
+      lbl1.textContent = 'winning equation';
+      d.appendChild(lbl1);
+      d.appendChild(miniRow(wToks, cards));
+      var wTree = tokensToTree(wToks, cards);
+      if(wTree) winnerCanon = canonTree(wTree);
+    }
+
+    // every other distinct solution
+    var all = cards.length ? uniqueSolutions(cards) : [];
+    var others = all.filter(function(t){
+      return winnerCanon ? canonTree(t) !== winnerCanon : true;
+    });
+    var lbl2 = document.createElement('div');
+    lbl2.className = 'ld-label';
+    lbl2.textContent = (winnerCanon ? 'other solutions' : 'all solutions') + ' (' + others.length + ')';
+    d.appendChild(lbl2);
+    if(others.length){
+      var scroll = document.createElement('div');
+      scroll.className = 'ld-scroll';
+      others.forEach(function(t, i){
+        scroll.appendChild(miniRow(treeToTokens(t), cards, '#' + (i+1)));
+      });
+      d.appendChild(scroll);
+    } else {
+      var none = document.createElement('div');
+      none.className = 'ld-label';
+      none.style.textTransform = 'none';
+      none.textContent = 'that was the only way to make 24';
+      d.appendChild(none);
+    }
+
+    item.appendChild(d);
+  }
+
+  collapsed();
+  return item;
+}
+logToggle.addEventListener('click', function(){
+  var open = matchLog.classList.toggle('hidden');
+  logToggle.setAttribute('aria-expanded', open ? 'false' : 'true');
+});
+
+/* ---------------- lobby screen ---------------- */
+function leaveLobbyState(){
+  stopLobbyPolling();
+  stopMatchPolling();
+  stopHostLoop();
+  stopHeartbeat();
+  clearTimeout(roundUnlockTimer);
+  clearTimeout(barTimeout);
+  lobbyCode = null; playerName = null; isHost = false; lastMatchId = 0;
+  mp.active = false; mp.over = false; mp.round = 0;
+  boardEl.classList.remove('show');
+  timeStat.classList.add('hidden');
+  timeStat.querySelector('.lbl').textContent = 'time';
+  timerTrack.classList.add('hidden');
+  hideVoteUI();
+}
+async function enterLobbyScreen(){
+  $('lobbyCode').textContent = lobbyCode;
+  var link = shareLink(lobbyCode);
+  $('lobbyLink').value = link ? link : ('Share the code: ' + lobbyCode);
+  var tgt = $('targetInput');
+  if(isHost){
+    $('startMatch').classList.remove('hidden');
+    $('lobbyWait').classList.add('hidden');
+    tgt.disabled = false;
+  } else {
+    $('startMatch').classList.add('hidden');
+    $('lobbyWait').classList.remove('hidden');
+    tgt.disabled = true;
+  }
+  var meta = await getMeta();
+  lastMatchId = (meta && meta.matchId) || 0;
+  if(meta && meta.target) tgt.value = meta.target;
+  showPanel('lobby');
+  renderRoster($('lobbyRoster'), await getPlayers());
+  startLobbyPolling();
+  startHeartbeat();
+}
+$('targetInput').addEventListener('change', function(){
+  if(!isHost) return;
+  var v = parseInt($('targetInput').value, 10);
+  if(!v || v < 1) v = MP_DEFAULT_TARGET;
+  v = Math.min(30, v);
+  $('targetInput').value = v;
+  setMeta({ target: v });
+});
+
+
+/* =====================================================================
+   8. WIRING
+   ===================================================================== */
+$('soloBtn').addEventListener('click', function(){ leaveLobbyState(); showPanel('brief'); });
+$('briefBack').addEventListener('click', function(){ showPanel('menu'); });
+$('briefStart').addEventListener('click', startSolo);
+$('createBtn').addEventListener('click', function(){ showPanel('create'); });
+$('joinBtn').addEventListener('click', function(){ showPanel('join'); });
+$('createBack').addEventListener('click', function(){ showPanel('menu'); });
+$('joinBack').addEventListener('click', function(){ showPanel('menu'); });
+
+$('createSubmit').addEventListener('click', async function(){
+  var name = $('createName').value.trim().slice(0,16) || 'Player';
+  $('createErr').textContent = '';
+  $('createSubmit').textContent = 'Creating…';
+  try{
+    requireFb();
+    var code = genCode();
+    lobbyCode = code; playerName = name; isHost = true;
+    await window.fb24.setMeta(code, {
+      createdAt:Date.now(), hostId:playerId, status:'waiting', matchId:0,
+      target:MP_DEFAULT_TARGET, round:0
+    });
+    await window.fb24.setPlayer(code, playerId, {
+      name:name, score:0, solvedRound:-1, solvedMs:null, solvedEq:'',
+      voteSession:-1, updatedAt:Date.now()
+    });
+    await enterLobbyScreen();
+  }catch(e){
+    console.error(e);
+    lobbyCode = null;
+    $('createErr').textContent = e.message || 'Could not create the lobby.';
+  }
+  $('createSubmit').textContent = 'Create lobby';
+});
+$('joinSubmit').addEventListener('click', async function(){
+  var code = $('joinCode').value.trim().toUpperCase();
+  var name = $('joinName').value.trim().slice(0,16) || 'Player';
+  $('joinErr').textContent = '';
+  if(!code){ $('joinErr').textContent = 'Enter the lobby code.'; return; }
+  $('joinSubmit').textContent = 'Joining…';
+  try{
+    requireFb();
+    lobbyCode = code;
+    var meta = await getMeta();
+    if(!meta){ lobbyCode = null; throw new Error('No lobby with that code.'); }
+    if(meta.status === 'active'){
+      lobbyCode = null;
+      throw new Error('That match is already under way — try again when it finishes.');
+    }
+    playerName = name;
+    isHost = (meta.hostId === playerId);
+    await window.fb24.setPlayer(code, playerId, {
+      name:name, score:0, solvedRound:-1, solvedMs:null, solvedEq:'',
+      voteSession:-1, updatedAt:Date.now()
+    });
+    await enterLobbyScreen();
+  }catch(e){
+    console.error(e);
+    $('joinErr').textContent = e.message || 'Could not join that lobby.';
+  }
+  $('joinSubmit').textContent = 'Join lobby';
+});
+$('copyCode').addEventListener('click', async function(){
+  try{
+    await navigator.clipboard.writeText(lobbyCode || '');
+    $('copyCode').textContent = 'Copied';
+    setTimeout(function(){ $('copyCode').textContent = 'Copy code'; }, 1300);
+  }catch(e){}
+});
+$('copyLink').addEventListener('click', async function(){
+  try{
+    await navigator.clipboard.writeText($('lobbyLink').value);
+    $('copyLink').textContent = 'Copied';
+    setTimeout(function(){ $('copyLink').textContent = 'Copy'; }, 1300);
+  }catch(e){}
+});
+$('startMatch').addEventListener('click', hostStartMatch);
+// Lets waiting guests find out immediately, rather than waiting out the
+// presence-staleness window, when the host genuinely departs the lobby.
+function signalAbandonIfHost(){
+  if(isHost && lobbyCode) setMeta({ status:'abandoned' });
+}
+$('lobbyLeave').addEventListener('click', function(){ signalAbandonIfHost(); leaveLobbyState(); showPanel('menu'); });
+$('overLeave').addEventListener('click', function(){ signalAbandonIfHost(); leaveLobbyState(); showPanel('menu'); });
+$('menuBtn').addEventListener('click', function(){ signalAbandonIfHost(); leaveLobbyState(); showPanel('menu'); });
+$('againBtn').addEventListener('click', function(){
+  if(lobbyCode && isHost) hostStartMatch();
+  else if(!lobbyCode) startSolo();
+});
+$('quitBtn').addEventListener('click', function(){
+  if(mode === 'solo'){ endSolo(); return; }
+  if(mode === 'mp'){
+    mp.over = true;
+    mp.active = false;
+    stopMatchPolling();
+    stopHostLoop();
+    clearTimeout(roundUnlockTimer);
+    leavePlay();
+    mode = null;
+    showPanel('lobby');
+    startLobbyPolling();
+    return;
+  }
+  signalAbandonIfHost();
+  leaveLobbyState();
+  showPanel('menu');
+});
+// The logo is a direct way home from anywhere in-game — no results
+// screen, no confirmation, just back to the main menu.
+$('homeMark').addEventListener('click', function(){
+  if(mode === 'mp'){
+    mp.over = true;
+    mp.active = false;
+    stopMatchPolling();
+    stopHostLoop();
+    stopHeartbeat();
+    clearTimeout(roundUnlockTimer);
+  }
+  if(mode === 'solo' || mode === 'mp') leavePlay();
+  mode = null;
+  signalAbandonIfHost();
+  leaveLobbyState();
+  showPanel('menu');
+});
+$('hostLeftMenuBtn').addEventListener('click', function(){ leaveLobbyState(); showPanel('menu'); });
+
+(function roomParam(){
+  var room = new URLSearchParams(location.search).get('room');
+  if(room){ $('joinCode').value = room.toUpperCase(); showPanel('join'); }
+})();
+
+loadBest();
+dealNew(null, { deal:false, locked:true });
+syncControls();
+fitLayout();
+// fonts change metrics, so refit once they've settled
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitLayout);
+window.addEventListener('load', fitLayout);
+})();
+</script>
+</body>
+</html>

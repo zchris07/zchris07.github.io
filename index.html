@@ -3,39 +3,55 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Chris Zou — Portfolio</title>
-<meta name="description" content="Games, learning tools and music apps built with Claude Code.">
+<title>Chris Zou</title>
+<meta name="description" content="Chris Zou: investment operations, UX/UI and front-end development. Experience and personal projects.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="top">
-  <h1>Chris Zou</h1>
-  <p class="lede">I build games, learning tools and music apps in the browser, working with Claude Code.</p>
-  <nav class="links">
-    <a href="mailto:zchris0783@gmail.com">Email</a>
-    <a href="https://www.linkedin.com/in/REPLACE-ME">LinkedIn</a>
-    <a href="https://github.com/zchris07">GitHub</a>
-    <a href="resume.pdf">Resume</a>
+<header class="bar">
+  <a class="brand" href="#home" data-write>Chris Zou</a>
+  <nav class="tabs" aria-label="Sections">
+    <a href="#experience" data-tab="experience">Professional experience</a>
+    <a href="#projects" data-tab="projects">Personal projects</a>
   </nav>
 </header>
+
 <main>
-  <section class="grid" id="grid" aria-label="Projects"></section>
+  <section class="tab" id="tab-home" data-tab="home">
+    <h1 data-write>Chris Zou</h1>
+    <p class="lede" data-write>Investment operations by trade, interface design and front-end code by choice. I build interactive web experiences end to end, with Claude Code.</p>
+    <p class="contact">
+      <a href="mailto:czou8@alumni.jh.edu">Email</a>
+      <a href="https://www.linkedin.com/in/cz12" target="_blank" rel="noopener">LinkedIn</a>
+      <a href="https://github.com/zchris07" target="_blank" rel="noopener">GitHub</a>
+    </p>
+  </section>
+
+  <section class="tab" id="tab-experience" data-tab="experience" hidden>
+    <h2 class="page-title" data-write>Professional experience</h2>
+    <ol class="timeline" id="timeline"></ol>
+  </section>
+
+  <section class="tab" id="tab-projects" data-tab="projects" hidden>
+    <h2 class="page-title" data-write>Personal projects</h2>
+    <div class="projects">
+      <ul class="plist" id="plist" aria-label="Projects"></ul>
+      <article class="detail" id="detail" aria-live="polite" hidden>
+        <h3 id="d-title" data-write></h3>
+        <p class="d-sum" id="d-sum" data-write></p>
+        <div class="stage" id="d-stage" aria-hidden="true"></div>
+        <p class="d-links" id="d-links"></p>
+      </article>
+    </div>
+  </section>
 </main>
-<footer>Built with plain HTML and CSS. Each Play button opens the app full page in a new tab.</footer>
-<script src="projects.js"></script>
-<script>
-const grid = document.getElementById('grid');
-for (const p of PROJECTS) {
-  const card = document.createElement('article');
-  card.className = 'card' + (p.soon ? ' soon' : '');
-  const shot = p.shot
-    ? `<img src="${p.shot}" alt="${p.name} screenshot" loading="lazy">`
-    : `<div class="ph" style="--h:${p.hue}"><span>${p.name}</span></div>`;
-  const play = p.play ? `<a class="btn primary" href="${p.play}" target="_blank" rel="noopener">Play</a>` : `<span class="btn disabled">${p.playNote || 'Coming soon'}</span>`;
-  const code = p.code ? `<a class="btn" href="${p.code}" target="_blank" rel="noopener">Code</a>` : '';
-  card.innerHTML = `<div class="shot">${shot}</div><div class="body"><h2>${p.name}</h2><p>${p.desc}</p><div class="actions">${play}${code}</div></div>`;
-  grid.appendChild(card);
-}
-</script>
+
+<script src="data.js"></script>
+<script src="write.js"></script>
+<script src="graphics.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

@@ -152,19 +152,49 @@ GRAPHICS.deadblock = stage => {
   });
 };
 
-// stroop: the writing effect, live.
+// stroop: a color word in a mismatched ink; pick the ink.
 GRAPHICS.stroop = stage => {
   const el = document.createElement('div'); el.className = 'stroop-demo';
-  const d = document.createElement('div'); el.append(d); stage.append(el);
-  const phrases = ['stroke by stroke', 'outline, then ink', 'written in, unwritten'];
-  let i = 0, dead = false, timer;
-  const cycle = () => {
+  const word = document.createElement('div'); word.className = 'sw';
+  const hint = document.createElement('div'); hint.className = 'sh'; hint.textContent = 'Pick the ink, not the word';
+  const row = document.createElement('div'); row.className = 'sb';
+  const bar = document.createElement('div'); bar.className = 'clock'; const fill = document.createElement('i'); bar.append(fill);
+  el.append(hint, word, row, bar); stage.append(el);
+  const C = { RED: '#ff5a5f', BLUE: '#4f8dff', GREEN: '#3ed17a' };
+  const names = Object.keys(C); const btns = names.map(n => { const b = document.createElement('span'); b.style.background = C[n]; row.append(b); return b; });
+  let n = 0, dead = false, t1, t2;
+  const round = () => {
     if (dead) return;
-    d.textContent = phrases[i++ % phrases.length];
-    d._prepared = false; d.classList.remove('hid');
-    writeIn(d, 1);
-    timer = setTimeout(() => { writeOut(d, 1); timer = setTimeout(() => { if (!dead) { clearWords(d); cycle(); } }, 1600); }, 2600);
+    const w = names[n % 3], ink = names[(n + 1 + (n >> 2)) % 3 === n % 3 ? (n + 2) % 3 : (n + 1 + (n >> 2)) % 3];
+    word.textContent = w; word.style.color = C[ink];
+    btns.forEach(b => b.classList.remove('hit'));
+    fill.style.transition = 'none'; fill.style.width = '100%'; void fill.offsetWidth; fill.style.transition = 'width 2.2s linear'; fill.style.width = '0%';
+    t1 = setTimeout(() => btns[names.indexOf(ink)].classList.add('hit'), 1500);
+    t2 = setTimeout(() => { n++; round(); }, 2400);
   };
-  cycle();
-  return () => { dead = true; clearTimeout(timer); };
+  round();
+  return () => { dead = true; clearTimeout(t1); clearTimeout(t2); };
+};
+
+// 24: four cards become 24.
+GRAPHICS.twentyfour = stage => {
+  const hands = [[[8, 3, 8, 3], '8 ÷ (3 − 8 ÷ 3)'], [[4, 7, 8, 8], '(7 − 8 ÷ 8) × 4'], [[1, 5, 5, 5], '5 × (5 − 1 ÷ 5)']];
+  const el = document.createElement('div'); el.className = 'tf-demo';
+  const cards = document.createElement('div'); cards.className = 'cards';
+  const eq = document.createElement('div'); eq.className = 'eq';
+  const res = document.createElement('div'); res.className = 'res';
+  el.append(cards, eq, res); stage.append(el);
+  let h = 0, dead = false, timers = [];
+  const later = (f, ms) => timers.push(setTimeout(() => !dead && f(), ms));
+  const play = () => {
+    const [cs, ex] = hands[h++ % hands.length];
+    cards.replaceChildren(); eq.textContent = ''; res.textContent = '';
+    cs.forEach(c => { const d = document.createElement('span'); d.textContent = c; cards.append(d); });
+    const toks = ex.split(' ');
+    toks.forEach((t, i) => later(() => { eq.textContent = toks.slice(0, i + 1).join(' '); }, 700 + i * 380));
+    later(() => { res.textContent = '= 24'; }, 700 + toks.length * 380 + 200);
+    later(play, 700 + toks.length * 380 + 2200);
+  };
+  play();
+  return () => { dead = true; timers.forEach(clearTimeout); };
 };

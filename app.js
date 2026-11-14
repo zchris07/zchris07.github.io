@@ -13,7 +13,7 @@ EXPERIENCE.forEach(e => {
 });
 
 // ---- theme ----
-const DEFAULT_THEME = { bg: '#f3ebe0', fg: '#3b2f2a', accent: '#9c6b43', panel: '#e8dccb' };
+const DEFAULT_THEME = { bg: '#caaf93', fg: '#2e2a26', accent: '#4f4943', panel: '#f5efe5' };
 function setTheme(t) { for (const k of ['bg', 'fg', 'accent', 'panel']) root.style.setProperty('--' + k, t[k]); }
 
 // ---- tabs ----

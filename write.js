@@ -88,7 +88,13 @@ function overlays(el, kind, k) {
 }
 
 const timers = new WeakMap();
-function clearWords(el) { el.querySelectorAll('.w').forEach(w => { w.classList.remove('writing', 'unwriting'); w.querySelector('svg')?.remove(); }); }
+function clearWords(el) { el.querySelectorAll('.w').forEach(w => { w.classList.remove('writing', 'unwriting', 'settling'); w.querySelector('svg')?.remove(); }); }
+// Hand-over from the animated copy to the real text is a short crossfade, so the two never visibly swap places.
+function settle(el) {
+  const words = [...el.querySelectorAll('.w')];
+  words.forEach(w => { w.classList.remove('writing'); w.classList.add('settling'); });
+  timers.set(el, setTimeout(() => { if (el._state === 'in') clearWords(el); }, 160));
+}
 
 function writeIn(el, k = 1) {
   prepare(el);
@@ -98,11 +104,11 @@ function writeIn(el, k = 1) {
   if (REDUCED) return;
   k *= SPEED;
   const words = el.querySelectorAll('.w');
-  words.forEach(w => w.classList.remove('unwriting'));
+  words.forEach(w => w.classList.remove('unwriting', 'settling'));
   const last = overlays(el, 'in', k);
   words.forEach(w => w.classList.add('writing'));
   // Once the last letter is inked in, hand over to the real text and drop the SVG copies.
-  timers.set(el, setTimeout(() => { if (el._state === 'in') clearWords(el); }, last + 700 * k + 60));
+  timers.set(el, setTimeout(() => { if (el._state === 'in') settle(el); }, last + 640 * k));
 }
 function writeOut(el, k = 1) {
   prepare(el);
@@ -111,7 +117,7 @@ function writeOut(el, k = 1) {
   if (REDUCED) { el.classList.add('hid'); return; }
   k *= SPEED;
   const words = el.querySelectorAll('.w');
-  words.forEach(w => w.classList.remove('writing'));
+  words.forEach(w => w.classList.remove('writing', 'settling'));
   const last = overlays(el, 'out', k);
   words.forEach(w => w.classList.add('unwriting'));
   timers.set(el, setTimeout(() => { if (el._state === 'out') { el.classList.add('hid'); clearWords(el); } }, last + UNWRITE_MS * k + 80));

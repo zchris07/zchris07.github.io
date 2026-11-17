@@ -104,6 +104,14 @@ new IntersectionObserver(es => es.forEach(e => {
   if (e.isIntersecting && quote._state !== 'in') quoteTimer = setTimeout(() => writeIn(quote, 1), 840);
 }), { threshold: 0.4 }).observe(quote);
 
+// ---- photo fades in right after load (within 1.5 s) ----
+const me = document.querySelector('.me');
+if (me) {
+  const showMe = () => me.classList.add('in');
+  if (me.complete) requestAnimationFrame(showMe); else me.addEventListener('load', showMe, { once: true });
+  setTimeout(showMe, 450);   // never leave it hidden if the load event is slow
+}
+
 // ---- start ----
 document.querySelectorAll('[data-write]').forEach(watch);
 sync();

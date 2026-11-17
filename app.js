@@ -1,21 +1,9 @@
 const $ = s => document.querySelector(s);
 const root = document.documentElement;
 
-// ---- experience timeline ----
-const tl = $('#timeline');
-EXPERIENCE.forEach(e => {
-  const li = document.createElement('li');
-  li.innerHTML = `<p class="when" data-write></p><h3 class="role" data-write></h3><p class="org" data-write></p><ul class="pts">${e.pts.map(() => '<li data-write></li>').join('')}</ul>`;
-  li.querySelector('.when').textContent = e.when;
-  li.querySelector('.role').textContent = e.role;
-  li.querySelector('.org').textContent = e.org;
-  li.querySelectorAll('.pts li').forEach((p, i) => p.textContent = e.pts[i]);
-  tl.append(li);
-});
-
 // ---- scroll-driven theme ----
 function setTheme(t) { for (const k of ['bg', 'fg', 'muted', 'accent', 'panel']) root.style.setProperty('--' + k, t[k]); }
-const secs = ['hero', 'experience', 'projects'].map(id => document.getElementById(id));
+const secs = ['hero', 'projects'].map(id => document.getElementById(id));
 const navLinks = [...document.querySelectorAll('.links a')];
 let openId = null, stopMedia = null, lastKey = null, queued = false;
 
@@ -104,7 +92,7 @@ function openProject(id) {
     requestAnimationFrame(() => { writeIn(title, 1); writeIn(sum, 0.7); });
   };
   if (first || REDUCED) fill();
-  else { writeOut($('#d-title'), .6); writeOut($('#d-sum'), .4); setTimeout(() => { if (openId === id) fill(); }, 450); }
+  else { writeOut($('#d-title'), .6); writeOut($('#d-sum'), .4); setTimeout(() => { if (openId === id) fill(); }, 315); }
 }
 
 // ---- hero quote: written in a second after the job title ----
@@ -113,7 +101,7 @@ prepare(quote); hideNow(quote);
 let quoteTimer = null;
 new IntersectionObserver(es => es.forEach(e => {
   clearTimeout(quoteTimer);
-  if (e.isIntersecting && quote._state !== 'in') quoteTimer = setTimeout(() => writeIn(quote, 1), 1200);
+  if (e.isIntersecting && quote._state !== 'in') quoteTimer = setTimeout(() => writeIn(quote, 1), 840);
 }), { threshold: 0.4 }).observe(quote);
 
 // ---- start ----

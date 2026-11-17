@@ -1,30 +1,6 @@
 // Content lives here. Edit freely.
 const GH = 'zchris07';
 
-// Chronological, college to present. (Resume: "Goldman Sachs Securities Settlements Operations resume".)
-const EXPERIENCE = [
-  { when: 'Class of 2022', role: 'B.A., Economics and Computer Science', org: 'Johns Hopkins University, Krieger School of Arts and Sciences · Baltimore, MD',
-    pts: ['GPA 3.71 / 4.0.', 'Coursework: Corporate Finance, Behavioral Economics, Object-Oriented Software Engineering, Databases.'] },
-  { when: 'Jun – Sep 2021', role: 'Client Operations Intern', org: 'Coastal Equities, Inc. · New York, NY',
-    pts: ['Assisted with onboarding new participants and troubleshooting issues to support business continuity, planning and testing.',
-          'Maintained and updated CRM systems and client data repositories, keeping reporting and operational oversight accurate.',
-          'Prioritized and managed multiple concurrent onboarding, repapering and account maintenance requests.'] },
-  { when: 'Jun 2022 – Apr 2024', role: 'PWM Operations Analyst', org: 'Morgan Stanley & Co. LLC · Purchase, NY',
-    pts: ['Executed trade reconciliation by verifying transaction details across systems, keeping client accounts accurate and consistent through the trade lifecycle.',
-          'Supported advisors and clients by resolving trade discrepancies, improving the efficiency of the end-to-end transaction cycle and client satisfaction.',
-          'Communicated with compliance and risk management to keep work within internal policies and objectives.'] },
-  { when: 'Jun – Nov 2024', role: 'Centralized Business Operations Associate (Contract)', org: 'Neuberger Berman · New York, NY',
-    pts: ['Oversaw client onboarding, including new account paperwork, account maintenance, registrations and profile changes.',
-          'Monitored trading workflows and escalated potential system, data or process issues.',
-          'Validated account and transaction data across multiple internal systems.',
-          'Partnered with CSAs and wealth advisors to improve client experience and support portfolio growth through better operational workflows.'] },
-  { when: 'Jan 2025 – present', role: 'Investment Operations Specialist (Remote)', org: 'Focus Forward · Minneapolis, MN',
-    pts: ['Partner with financial advisors and business partners on operational support, trade inquiries and client onboarding.',
-          'Coordinate trade execution across equities, ETFs, mutual funds and rebalancing models for multiple client accounts.',
-          'Use Black Diamond to keep portfolio data accurate, generate performance reports and support advisor-facing analytics.',
-          'Monitor daily account activity, cash balances and trade settlements, resolving discrepancies proactively.'] },
-];
-
 // Each project: title, theme (page colors while it is open), summary, links, media (assets/ captured from the running apps).
 const PROJECTS = [
   { id: 'sidequest', title: 'sidequest planner',
@@ -69,9 +45,8 @@ const PROJECTS = [
     play: `https://${GH}.github.io/play/24/`, playLabel: 'Play', code: `https://github.com/${GH}/24` },
 ];
 
-// Page themes by scroll position: Latte 2.0 (from the calendar app), black on white, then white on Meta blue.
+// Page themes by scroll position: Latte 2.0 (from the calendar app), then white on Meta blue.
 const THEMES = {
   hero: { bg: '#caaf93', fg: '#2e2a26', muted: '#62594f', accent: '#4f4943', panel: '#f5efe5' },
-  experience: { bg: '#ffffff', fg: '#000000', muted: '#555555', accent: '#000000', panel: '#f2f2f2' },
   projects: { bg: '#0064e0', fg: '#ffffff', muted: 'rgba(255,255,255,0.78)', accent: '#ffffff', panel: '#0057c4' },
 };
